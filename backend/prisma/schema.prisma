@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enum Definitions ---
+
+// Mirroring ParticipantType enum from Solidity
+enum ParticipantType {
+  Farmer
+  Distributor
+  Retailer
+  Regulator // For government/admin roles
+  None // Default, or for unassigned roles
+}
+
+// Mirroring BatchStatus enum from Solidity
+enum BatchStatus {
+  Registered
+  InTransit
+  AtDistributor
+  AtRetailer
+  Sold
+  Spoiled
+  Disputed
+}
+
+// Enum for types of supply chain events
+enum EventType {
+  Registered
+  Transferred
+  QualityCheck
+  PriceUpdate
+  Sold
+  Spoiled
+  DisputeRaised
+  DisputeResolved
+  Other
+}
+
+// --- Models ---
+
+// Model for managing application users and their blockchain addresses.
+// A single user might have multiple roles/addresses, but for simplicity,
+// we'll link one user to one primary participant address here.
+model User {
+  id                String        @id @default(uuid())
+  email             String        @unique
+  passwordHash      String
+  name              String
+  contactInfo       String?
+  profilePictureUrl String?
+  participants      Participant[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+// Represents a blockchain participant (Farmer, Distributor, Retailer, Regulator).
+model Participant {
+  id                String             @id @default(uuid())
+  blockchainAddress String             @unique
+  name              String
+  contactInfo       String?
+  location          String?
+  type              ParticipantType    @default(None)
+  registeredAt      DateTime           @default(now())
+  isActive          Boolean            @default(true)
+  organizationName  String?
+  kycDocumentHash   String? // IPFS hash of KYC documents
+  licenseHash       String? // IPFS hash of business license
+  userId            String // Foreign key to User
+  user              User               @relation(fields: [userId], references: [id])
+  registeredBatches ProduceBatch[]     @relation("FarmerBatches") // Batches this participant registered
+  ownedBatches      ProduceBatch[]     @relation("CurrentOwnedBatches") // Batches currently owned by this participant
+  initiatedEvents   SupplyChainEvent[] @relation("InitiatorEvents")
+  receivedEvents    SupplyChainEvent[] @relation("ReceiverEvents") // For transfer events
+  qualityChecks     QualityCheck[] // Quality checks performed by this participant
+  raisedDisputes    Dispute[]          @relation("RaisedDisputes")
+  resolvedDisputes  Dispute[]          @relation("ResolvedDisputes")
+}
+
+model ProduceBatch {
+  id                    String      @id @default(uuid()) // Internal DB ID
+  batchId               String      @unique // Matches Solidity's batchId for direct lookup
+  farmerId              String
+  farmer                Participant @relation("FarmerBatches", fields: [farmerId], references: [id])
+  produceType           String // e.g., "Organic Tomatoes", "Basmati Rice"
+  quantity              Float // Using Float for potential decimal quantities
+  quantityUnit          String // e.g., "kg", "dozens", "pieces"
+  registrationTimestamp DateTime // When registered on blockchain
+  originLocation        String // Detailed location of the farm
+  currentPrice          String // String to handle currency symbols and flexibility
+  imageHash             String? // IPFS hash of initial produce image
+  detailsHash           String? // IPFS hash for additional batch details (e.g., certifications)
+  blockchainTxHash      String      @unique // Tx hash of the initial batch registration on blockchain
+  qrCodeUrl             String      @unique // URL to fetch consumer info, embeds batchId
+
+  // Current owner of the batch (links to Participant)
+  currentOwnerId String
+  currentOwner   Participant @relation("CurrentOwnedBatches", fields: [currentOwnerId], references: [id])
+  status         BatchStatus @default(Registered)
+  lastUpdated    DateTime    @updatedAt
+
+  // Relationships
+  events        SupplyChainEvent[]
+  qualityChecks QualityCheck[]
+  disputes      Dispute[]
+}
+
+model SupplyChainEvent {
+  id               String       @id @default(uuid())
+  eventId          BigInt       @unique // Matches Solidity's internal eventId for ordering
+  batchId          String
+  batch            ProduceBatch @relation(fields: [batchId], references: [batchId])
+  participantId    String // Who performed the action
+  participant      Participant  @relation("InitiatorEvents", fields: [participantId], references: [id])
+  receiverId       String? // For 'Transferred' events, who received it
+  receiver         Participant? @relation("ReceiverEvents", fields: [receiverId], references: [id])
+  timestamp        DateTime
+  eventType        EventType
+  location         String // Location where event occurred
+  details          String // Specific details for the event
+  documentHash     String? // IPFS hash of any supporting documents
+  blockchainTxHash String       @unique // Transaction hash of this event on the blockchain
+  createdAt        DateTime     @default(now())
+}
+
+model QualityCheck {
+  id                 String       @id @default(uuid())
+  batchId            String
+  batch              ProduceBatch @relation(fields: [batchId], references: [batchId])
+  checkerId          String
+  checker            Participant  @relation(fields: [checkerId], references: [id])
+  timestamp          DateTime
+  location           String
+  overallResult      String // e.g., "Good", "Fair", "Poor"
+  detailedReportHash String? // IPFS hash of a detailed quality report
+  imagesHash         String? // IPFS hash of images taken during check
+  notes              String?
+  blockchainTxHash   String       @unique // Transaction hash of this quality check on the blockchain
+  createdAt          DateTime     @default(now())
+}
+
+// Model for handling disputes in the supply chain
+model Dispute {
+  id               String       @id @default(uuid())
+  batchId          String
+  batch            ProduceBatch @relation(fields: [batchId], references: [batchId])
+  disputantId      String
+  disputant        Participant  @relation("RaisedDisputes", fields: [disputantId], references: [id])
+  reason           String
+  detailsHash      String? // IPFS hash of supporting evidence for the dispute
+  raisedAt         DateTime     @default(now())
+  status           String       @default("Pending") // e.g., "Pending", "Resolved", "Rejected"
+  resolvedById     String? // Who resolved it (e.g., Regulator)
+  resolver         Participant? @relation("ResolvedDisputes", fields: [resolvedById], references: [id])
+  resolution       String? // Outcome of the dispute
+  resolutionHash   String? // IPFS hash of the official dispute resolution document
+  resolvedAt       DateTime?
+  blockchainTxHash String?      @unique // Tx hash for dispute raised/resolved on blockchain
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
