@@ -8,161 +8,404 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Enum Definitions ---
-
-// Mirroring ParticipantType enum from Solidity
-enum ParticipantType {
-  Farmer
-  Distributor
-  Retailer
-  Regulator // For government/admin roles
-  None // Default, or for unassigned roles
+enum StakeholderRole {
+  FARMER
+  DISTRIBUTOR
+  RETAILER
+  CONSUMER
+  QUALITY_INSPECTOR
 }
 
-// Mirroring BatchStatus enum from Solidity
-enum BatchStatus {
-  Registered
-  InTransit
-  AtDistributor
-  AtRetailer
-  Sold
-  Spoiled
-  Disputed
+enum ProductStatus {
+  PRODUCED
+  IN_TRANSIT
+  DELIVERED
+  SOLD
+  EXPIRED
 }
 
-// Enum for types of supply chain events
-enum EventType {
-  Registered
-  Transferred
-  QualityCheck
-  PriceUpdate
-  Sold
-  Spoiled
-  DisputeRaised
-  DisputeResolved
-  Other
+enum QualityGrade {
+  A
+  B
+  C
+  REJECTED
 }
 
-// --- Models ---
-
-// Model for managing application users and their blockchain addresses.
-// A single user might have multiple roles/addresses, but for simplicity,
-// we'll link one user to one primary participant address here.
-model User {
-  id                String        @id @default(uuid())
-  email             String        @unique
-  passwordHash      String
-  name              String
-  contactInfo       String?
-  profilePictureUrl String?
-  participants      Participant[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+enum CertificationType {
+  ORGANIC
+  FAIR_TRADE
+  NON_GMO
+  PESTICIDE_FREE
+  SUSTAINABLE
 }
 
-// Represents a blockchain participant (Farmer, Distributor, Retailer, Regulator).
-model Participant {
-  id                String             @id @default(uuid())
-  blockchainAddress String             @unique
-  name              String
-  contactInfo       String?
-  location          String?
-  type              ParticipantType    @default(None)
-  registeredAt      DateTime           @default(now())
-  isActive          Boolean            @default(true)
-  organizationName  String?
-  kycDocumentHash   String? // IPFS hash of KYC documents
-  licenseHash       String? // IPFS hash of business license
-  userId            String // Foreign key to User
-  user              User               @relation(fields: [userId], references: [id])
-  registeredBatches ProduceBatch[]     @relation("FarmerBatches") // Batches this participant registered
-  ownedBatches      ProduceBatch[]     @relation("CurrentOwnedBatches") // Batches currently owned by this participant
-  initiatedEvents   SupplyChainEvent[] @relation("InitiatorEvents")
-  receivedEvents    SupplyChainEvent[] @relation("ReceiverEvents") // For transfer events
-  qualityChecks     QualityCheck[] // Quality checks performed by this participant
-  raisedDisputes    Dispute[]          @relation("RaisedDisputes")
-  resolvedDisputes  Dispute[]          @relation("ResolvedDisputes")
+model Stakeholder {
+  id               String          @id @default(cuid())
+  walletAddress    String          @unique
+  role             StakeholderRole
+  name             String
+  email            String?         @unique
+  phone            String?
+  isVerified       Boolean         @default(false)
+  registrationDate DateTime        @default(now())
+
+  // Profile details
+  profileImage   String?
+  description    String?
+  location       String?
+  gpsCoordinates Json? // {lat: number, lng: number}
+
+  // Business details
+  businessName    String?
+  businessLicense String?
+  taxId           String?
+
+  // Hash stored on blockchain
+  dataHash String?
+
+  // Relations
+  farmedBatches        ProductBatch[]  @relation("FarmerBatches")
+  ownedBatches         ProductBatch[]  @relation("OwnerBatches")
+  sentTransactions     Transaction[]   @relation("SentTransactions")
+  receivedTransactions Transaction[]   @relation("ReceivedTransactions")
+  qualityReports       QualityReport[]
+  certifications       Certification[]
+
+  @@map("stakeholders")
 }
 
-model ProduceBatch {
-  id                    String      @id @default(uuid()) // Internal DB ID
-  batchId               String      @unique // Matches Solidity's batchId for direct lookup
-  farmerId              String
-  farmer                Participant @relation("FarmerBatches", fields: [farmerId], references: [id])
-  produceType           String // e.g., "Organic Tomatoes", "Basmati Rice"
-  quantity              Float // Using Float for potential decimal quantities
-  quantityUnit          String // e.g., "kg", "dozens", "pieces"
-  registrationTimestamp DateTime // When registered on blockchain
-  originLocation        String // Detailed location of the farm
-  currentPrice          String // String to handle currency symbols and flexibility
-  imageHash             String? // IPFS hash of initial produce image
-  detailsHash           String? // IPFS hash for additional batch details (e.g., certifications)
-  blockchainTxHash      String      @unique // Tx hash of the initial batch registration on blockchain
-  qrCodeUrl             String      @unique // URL to fetch consumer info, embeds batchId
+model ProductBatch {
+  id             String  @id @default(cuid())
+  batchId        Int     @unique // Maps to blockchain batch ID
+  blockchainHash String? // Transaction hash when created on blockchain
 
-  // Current owner of the batch (links to Participant)
-  currentOwnerId String
-  currentOwner   Participant @relation("CurrentOwnedBatches", fields: [currentOwnerId], references: [id])
-  status         BatchStatus @default(Registered)
-  lastUpdated    DateTime    @updatedAt
+  // Basic product info
+  productType String
+  variety     String?
+  quantity    Decimal // in kg
+  unit        String  @default("kg")
+
+  // Dates
+  harvestDate DateTime
+  expiryDate  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Status and quality
+  status       ProductStatus @default(PRODUCED)
+  qualityGrade QualityGrade  @default(A)
+
+  // Pricing
+  basePrice Decimal // price per unit in local currency
+  currency  String  @default("INR")
 
   // Relationships
-  events        SupplyChainEvent[]
-  qualityChecks QualityCheck[]
-  disputes      Dispute[]
+  farmerId       String
+  farmer         Stakeholder @relation("FarmerBatches", fields: [farmerId], references: [id])
+  currentOwnerId String
+  currentOwner   Stakeholder @relation("OwnerBatches", fields: [currentOwnerId], references: [id])
+
+  // Detailed information (hashed on blockchain)
+  originData     OriginData?
+  qualityReports QualityReport[]
+  transactions   Transaction[]
+  certifications BatchCertification[]
+  storageInfo    StorageInfo[]
+
+  // Hashes stored on blockchain
+  originHash  String?
+  qualityHash String?
+
+  @@map("product_batches")
 }
 
-model SupplyChainEvent {
-  id               String       @id @default(uuid())
-  eventId          BigInt       @unique // Matches Solidity's internal eventId for ordering
-  batchId          String
-  batch            ProduceBatch @relation(fields: [batchId], references: [batchId])
-  participantId    String // Who performed the action
-  participant      Participant  @relation("InitiatorEvents", fields: [participantId], references: [id])
-  receiverId       String? // For 'Transferred' events, who received it
-  receiver         Participant? @relation("ReceiverEvents", fields: [receiverId], references: [id])
-  timestamp        DateTime
-  eventType        EventType
-  location         String // Location where event occurred
-  details          String // Specific details for the event
-  documentHash     String? // IPFS hash of any supporting documents
-  blockchainTxHash String       @unique // Transaction hash of this event on the blockchain
-  createdAt        DateTime     @default(now())
+model OriginData {
+  id      String       @id @default(cuid())
+  batchId String       @unique
+  batch   ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  // Farm details
+  farmName       String
+  farmAddress    String
+  gpsCoordinates Json // {lat: number, lng: number}
+  farmSize       Decimal? // in acres/hectares
+
+  // Soil and environment
+  soilType    String?
+  soilPH      Decimal?
+  climate     String?
+  waterSource String?
+
+  // Farming practices
+  seedVariety      String?
+  plantingMethod   String?
+  irrigationMethod String?
+  fertilizers      Json? // Array of fertilizers used
+  pesticides       Json? // Array of pesticides used
+  harvestMethod    String?
+
+  // Weather data during growing season
+  weatherData Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("origin_data")
 }
 
-model QualityCheck {
-  id                 String       @id @default(uuid())
-  batchId            String
-  batch              ProduceBatch @relation(fields: [batchId], references: [batchId])
-  checkerId          String
-  checker            Participant  @relation(fields: [checkerId], references: [id])
-  timestamp          DateTime
-  location           String
-  overallResult      String // e.g., "Good", "Fair", "Poor"
-  detailedReportHash String? // IPFS hash of a detailed quality report
-  imagesHash         String? // IPFS hash of images taken during check
-  notes              String?
-  blockchainTxHash   String       @unique // Transaction hash of this quality check on the blockchain
-  createdAt          DateTime     @default(now())
+model QualityReport {
+  id      String       @id @default(cuid())
+  batchId String
+  batch   ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  inspectorId String
+  inspector   Stakeholder @relation(fields: [inspectorId], references: [id])
+
+  // Quality metrics
+  grade      QualityGrade
+  appearance String? // Description
+  texture    String?
+  taste      String?
+  aroma      String?
+
+  // Scientific measurements
+  moistureContent Decimal? // percentage
+  sugarContent    Decimal? // brix/percentage
+  acidity         Decimal? // pH
+
+  // Safety tests
+  pesticideResidue Json? // Test results
+  heavyMetals      Json? // Test results
+  microbiological  Json? // Test results
+
+  // Additional notes
+  notes  String?
+  images Json? // Array of image URLs
+
+  reportDate DateTime  @default(now())
+  expiryDate DateTime? // When this report expires
+
+  // Blockchain hash
+  reportHash String?
+
+  @@map("quality_reports")
 }
 
-// Model for handling disputes in the supply chain
-model Dispute {
-  id               String       @id @default(uuid())
-  batchId          String
-  batch            ProduceBatch @relation(fields: [batchId], references: [batchId])
-  disputantId      String
-  disputant        Participant  @relation("RaisedDisputes", fields: [disputantId], references: [id])
-  reason           String
-  detailsHash      String? // IPFS hash of supporting evidence for the dispute
-  raisedAt         DateTime     @default(now())
-  status           String       @default("Pending") // e.g., "Pending", "Resolved", "Rejected"
-  resolvedById     String? // Who resolved it (e.g., Regulator)
-  resolver         Participant? @relation("ResolvedDisputes", fields: [resolvedById], references: [id])
-  resolution       String? // Outcome of the dispute
-  resolutionHash   String? // IPFS hash of the official dispute resolution document
-  resolvedAt       DateTime?
-  blockchainTxHash String?      @unique // Tx hash for dispute raised/resolved on blockchain
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+model Transaction {
+  id      String       @id @default(cuid())
+  batchId String
+  batch   ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  fromId String
+  from   Stakeholder @relation("SentTransactions", fields: [fromId], references: [id])
+  toId   String
+  to     Stakeholder @relation("ReceivedTransactions", fields: [toId], references: [id])
+
+  // Transaction details
+  transactionType String // "SALE", "TRANSFER", "RETURN"
+  quantity        Decimal // Amount being transferred
+  pricePerUnit    Decimal
+  totalPrice      Decimal
+  currency        String  @default("INR")
+
+  // Payment details
+  paymentMethod String? // "CASH", "BANK_TRANSFER", "CRYPTO"
+  paymentStatus String  @default("PENDING") // "PENDING", "COMPLETED", "FAILED"
+  paymentRef    String? // Reference number
+
+  // Location and timing
+  transactionDate DateTime  @default(now())
+  deliveryDate    DateTime?
+  location        String?
+  gpsCoordinates  Json?
+
+  // Transport details
+  transportMethod String? // "TRUCK", "RAIL", "AIR", "SHIP"
+  vehicleNumber   String?
+  driverDetails   Json?
+
+  // Documents
+  invoice   String? // URL to invoice
+  receipt   String? // URL to receipt
+  documents Json? // Array of document URLs
+
+  // Notes and conditions
+  notes      String?
+  conditions String? // Special conditions for the transaction
+
+  // Blockchain data
+  blockchainTxHash String? // Ethereum transaction hash
+  transactionHash  String? // Hash of this transaction data stored on blockchain
+
+  @@map("transactions")
 }
+
+model Certification {
+  id            String      @id @default(cuid())
+  stakeholderId String
+  stakeholder   Stakeholder @relation(fields: [stakeholderId], references: [id], onDelete: Cascade)
+
+  type              CertificationType
+  certifyingBody    String // Name of certifying organization
+  certificateNumber String            @unique
+
+  issuedDate DateTime
+  expiryDate DateTime
+  isValid    Boolean  @default(true)
+
+  // Certificate details
+  scope      String? // What this certificate covers
+  standards  Json? // Array of standards met
+  conditions String? // Any conditions or limitations
+
+  // Documents
+  certificateUrl String? // URL to certificate document
+
+  batchCertifications BatchCertification[]
+
+  @@map("certifications")
+}
+
+model BatchCertification {
+  id              String        @id @default(cuid())
+  batchId         String
+  batch           ProductBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  certificationId String
+  certification   Certification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+
+  appliedDate  DateTime  @default(now())
+  verifiedDate DateTime?
+  isVerified   Boolean   @default(false)
+
+  @@unique([batchId, certificationId])
+  @@map("batch_certifications")
+}
+
+model StorageInfo {
+  id      String       @id @default(cuid())
+  batchId String
+  batch   ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  facilityName   String
+  facilityType   String // "WAREHOUSE", "COLD_STORAGE", "SILO"
+  location       String
+  gpsCoordinates Json?
+
+  // Storage conditions
+  temperature Decimal? // in Celsius
+  humidity    Decimal? // percentage
+  atmosphere  String? // "CONTROLLED_ATMOSPHERE", "MODIFIED_ATMOSPHERE"
+
+  // Duration
+  storageStartDate DateTime
+  storageEndDate   DateTime?
+
+  // Quality during storage
+  qualityAtEntry String?
+  qualityAtExit  String?
+  losses         Decimal? // percentage/quantity lost
+
+  // Monitoring data
+  monitoringData Json? // Array of monitoring records
+
+  notes String?
+
+  @@map("storage_info")
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // What was changed
+  entityType String // "BATCH", "STAKEHOLDER", "TRANSACTION"
+  entityId   String // ID of the changed entity
+  action     String // "CREATE", "UPDATE", "DELETE"
+  changes    Json // What fields were changed
+
+  // Who made the change
+  userId      String? // Stakeholder ID who made the change
+  userAddress String? // Wallet address
+
+  // When and where
+  timestamp DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  // Blockchain reference
+  blockchainTxHash String?
+
+  @@map("audit_logs")
+}
+
+model QRCode {
+  id         String  @id @default(cuid())
+  batchId    String  @unique
+  qrCodeData String // The QR code content
+  qrCodeUrl  String? // URL to QR code image
+
+  generatedAt DateTime @default(now())
+  isActive    Boolean  @default(true)
+
+  // Analytics
+  scans QRScan[]
+
+  @@map("qr_codes")
+}
+
+model QRScan {
+  id       String @id @default(cuid())
+  qrCodeId String
+  qrCode   QRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  scannedAt      DateTime @default(now())
+  scannerType    String? // "CONSUMER", "RETAILER", "INSPECTOR"
+  location       String?
+  gpsCoordinates Json?
+  ipAddress      String?
+  userAgent      String?
+
+  @@map("qr_scans")
+}
+
+// System configuration and settings
+model SystemConfig {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       String
+  description String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+// Price history for market analysis
+model PriceHistory {
+  id          String  @id @default(cuid())
+  productType String
+  variety     String?
+  location    String // Market location
+
+  date         DateTime
+  pricePerUnit Decimal
+  currency     String   @default("INR")
+  unit         String   @default("kg")
+
+  // Market data
+  marketName String?
+  source     String? // Where this price data came from
+  quality    String? // Quality grade this price applies to
+
+  @@map("price_history")
+}
+
+// Indexes for better performance
+// Add these as comments for reference when setting up the database
+
+// CREATE INDEX idx_product_batches_farmer_id ON product_batches(farmer_id);
+// CREATE INDEX idx_product_batches_status ON product_batches(status);
+// CREATE INDEX idx_product_batches_harvest_date ON product_batches(harvest_date);
+// CREATE INDEX idx_transactions_batch_id ON transactions(batch_id);
+// CREATE INDEX idx_transactions_date ON transactions(transaction_date);
+// CREATE INDEX idx_quality_reports_batch_id ON quality_reports(batch_id);
+// CREATE INDEX idx_stakeholders_wallet_address ON stakeholders(wallet_address);
+// CREATE INDEX idx_stakeholders_role ON stakeholders(role);
