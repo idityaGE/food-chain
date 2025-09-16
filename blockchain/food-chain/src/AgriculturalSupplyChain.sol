@@ -2,147 +2,91 @@
 pragma solidity ^0.8.19;
 
 contract AgriculturalSupplyChain {
-    enum StakeholderRole {
-        Farmer,
-        Distributor,
-        Retailer,
-        Consumer
-    }
-    enum ProductStatus {
-        Produced,
-        InTransit,
-        Delivered,
-        Sold
-    }
-    enum QualityGrade {
-        A,
-        B,
-        C,
-        Rejected
-    }
-
-    // Events
-    event StakeholderRegistered(
-        address indexed stakeholder,
-        StakeholderRole role
-    );
-    event ProductBatchCreated(
-        uint256 indexed batchId,
-        address indexed farmer,
-        string productType
-    );
-    event BatchSplit(
-        uint256 indexed parentBatchId,
-        uint256[] childBatchIds,
-        uint256[] quantities
-    );
-    event PartialTransfer(
-        uint256 indexed fromBatchId,
-        uint256 indexed toBatchId,
-        uint256 quantity,
-        address indexed to
-    );
-    event FullTransfer(
-        uint256 indexed batchId,
-        address indexed from,
-        address indexed to,
-        uint256 price
-    );
-    event QualityVerified(
-        uint256 indexed batchId,
-        QualityGrade grade,
-        address indexed verifier
-    );
+    
+    // Enums for better code readability
+    enum StakeholderRole { Farmer, Distributor, Retailer, Consumer }
+    enum ProductStatus { Produced, InTransit, Delivered, Sold }
+    enum QualityGrade { A, B, C, Rejected }
+    
+    // Events for transparency and tracking
+    event StakeholderRegistered(address indexed stakeholder, StakeholderRole role);
+    event ProductBatchCreated(uint256 indexed batchId, address indexed farmer, string productType);
+    event ProductTransferred(uint256 indexed batchId, address indexed from, address indexed to, uint256 price);
+    event QualityVerified(uint256 indexed batchId, QualityGrade grade, address indexed verifier);
     event ProductStatusUpdated(uint256 indexed batchId, ProductStatus status);
-
+    
+    // Structs to store on-chain data
     struct Stakeholder {
         address stakeholderAddress;
         StakeholderRole role;
         string name;
         bool isVerified;
         uint256 registrationTime;
-        string dataHash;
+        string dataHash; // Hash of off-chain detailed profile data
     }
-
+    
     struct ProductBatch {
         uint256 batchId;
         address currentOwner;
-        address originalFarmer; // Always points to the original farmer
+        address farmer;
         string productType;
-        uint256 totalQuantity; // Original total quantity
-        uint256 availableQuantity; // Current available quantity
+        uint256 quantity; // in kg
         uint256 harvestDate;
         uint256 expiryDate;
         ProductStatus status;
         QualityGrade qualityGrade;
-        uint256 basePrice;
-        string originHash;
-        string qualityHash;
+        uint256 basePrice; // price per kg in wei
+        string originHash; // Hash of detailed origin data (GPS, soil info, etc.)
+        string qualityHash; // Hash of detailed quality reports
         bool exists;
-        // Batch hierarchy for tracking splits
-        uint256 parentBatchId; // 0 if original batch, parent ID if split
-        uint256[] childBatchIds; // Array of child batch IDs if this batch was split
-        bool isActive; // false if fully transferred/split
     }
-
-    struct PartialTransferRecord {
-        uint256 fromBatchId;
-        uint256 toBatchId;
+    
+    struct Transaction {
         address from;
         address to;
-        uint256 quantity;
-        uint256 pricePerUnit;
         uint256 timestamp;
-        string transactionHash;
+        uint256 price;
+        string transactionHash; // Hash of detailed transaction data
     }
-
+    
     // State variables
     address public admin;
     uint256 public nextBatchId;
-
+    
+    // Mappings
     mapping(address => Stakeholder) public stakeholders;
     mapping(uint256 => ProductBatch) public productBatches;
-    mapping(uint256 => PartialTransferRecord[]) public batchTransferHistory;
+    mapping(uint256 => Transaction[]) public batchTransactions;
     mapping(address => uint256[]) public stakeholderBatches;
-
+    
     // Modifiers
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only admin can perform this action");
         _;
     }
-
+    
     modifier onlyVerifiedStakeholder() {
-        require(
-            stakeholders[msg.sender].isVerified,
-            "Stakeholder not verified"
-        );
+        require(stakeholders[msg.sender].isVerified, "Stakeholder not verified");
         _;
     }
-
+    
     modifier onlyBatchOwner(uint256 _batchId) {
-        require(
-            productBatches[_batchId].currentOwner == msg.sender,
-            "Not the batch owner"
-        );
+        require(productBatches[_batchId].currentOwner == msg.sender, "Not the batch owner");
         _;
     }
-
+    
     modifier batchExists(uint256 _batchId) {
         require(productBatches[_batchId].exists, "Batch does not exist");
         _;
     }
-
-    modifier batchActive(uint256 _batchId) {
-        require(productBatches[_batchId].isActive, "Batch is not active");
-        _;
-    }
-
+    
+    // Constructor
     constructor() {
         admin = msg.sender;
         nextBatchId = 1;
     }
-
-    // Register stakeholders (same as before)
+    
+    // Register stakeholders
     function registerStakeholder(
         address _stakeholderAddress,
         StakeholderRole _role,
@@ -151,7 +95,7 @@ contract AgriculturalSupplyChain {
     ) external onlyAdmin {
         require(_stakeholderAddress != address(0), "Invalid address");
         require(bytes(_name).length > 0, "Name cannot be empty");
-
+        
         stakeholders[_stakeholderAddress] = Stakeholder({
             stakeholderAddress: _stakeholderAddress,
             role: _role,
@@ -160,11 +104,11 @@ contract AgriculturalSupplyChain {
             registrationTime: block.timestamp,
             dataHash: _dataHash
         });
-
+        
         emit StakeholderRegistered(_stakeholderAddress, _role);
     }
-
-    // Create new product batch
+    
+    // Create new product batch (only farmers)
     function createProductBatch(
         string memory _productType,
         uint256 _quantity,
@@ -174,275 +118,76 @@ contract AgriculturalSupplyChain {
         string memory _originHash,
         string memory _qualityHash
     ) external onlyVerifiedStakeholder returns (uint256) {
-        require(
-            stakeholders[msg.sender].role == StakeholderRole.Farmer,
-            "Only farmers can create batches"
-        );
+        require(stakeholders[msg.sender].role == StakeholderRole.Farmer, "Only farmers can create batches");
         require(_quantity > 0, "Quantity must be greater than 0");
-        require(
-            _expiryDate > _harvestDate,
-            "Expiry date must be after harvest date"
-        );
+        require(_expiryDate > _harvestDate, "Expiry date must be after harvest date");
         require(_basePrice > 0, "Price must be greater than 0");
-
+        
         uint256 batchId = nextBatchId++;
-
+        
         productBatches[batchId] = ProductBatch({
             batchId: batchId,
             currentOwner: msg.sender,
-            originalFarmer: msg.sender,
+            farmer: msg.sender,
             productType: _productType,
-            totalQuantity: _quantity,
-            availableQuantity: _quantity,
+            quantity: _quantity,
             harvestDate: _harvestDate,
             expiryDate: _expiryDate,
             status: ProductStatus.Produced,
-            qualityGrade: QualityGrade.A,
+            qualityGrade: QualityGrade.A, // Default grade
             basePrice: _basePrice,
             originHash: _originHash,
             qualityHash: _qualityHash,
-            exists: true,
-            parentBatchId: 0, // This is an original batch
-            childBatchIds: new uint256[](0),
-            isActive: true
+            exists: true
         });
-
+        
         stakeholderBatches[msg.sender].push(batchId);
-
+        
         emit ProductBatchCreated(batchId, msg.sender, _productType);
         return batchId;
     }
-
-    // Transfer partial quantity to another stakeholder
-    function transferPartialBatch(
+    
+    // Transfer product batch to another stakeholder
+    function transferBatch(
         uint256 _batchId,
         address _to,
-        uint256 _quantity,
-        uint256 _pricePerUnit,
+        uint256 _price,
         string memory _transactionHash
-    )
-        external
-        payable
-        onlyBatchOwner(_batchId)
-        batchExists(_batchId)
-        batchActive(_batchId)
-        returns (uint256)
-    {
+    ) external payable onlyBatchOwner(_batchId) batchExists(_batchId) {
         require(stakeholders[_to].isVerified, "Receiver not verified");
-        require(_quantity > 0, "Quantity must be greater than 0");
-        require(
-            _quantity <= productBatches[_batchId].availableQuantity,
-            "Insufficient quantity available"
-        );
-
-        uint256 totalPrice = _quantity * _pricePerUnit;
-        require(msg.value >= totalPrice, "Insufficient payment");
-
-        ProductBatch storage sourceBatch = productBatches[_batchId];
-
-        // Create new batch for the transferred portion
-        uint256 newBatchId = nextBatchId++;
-
-        // Create the new batch with transferred quantity
-        productBatches[newBatchId] = ProductBatch({
-            batchId: newBatchId,
-            currentOwner: _to,
-            originalFarmer: sourceBatch.originalFarmer, // Keep original farmer reference
-            productType: sourceBatch.productType,
-            totalQuantity: _quantity, // New batch has only the transferred quantity
-            availableQuantity: _quantity,
-            harvestDate: sourceBatch.harvestDate,
-            expiryDate: sourceBatch.expiryDate,
-            status: ProductStatus.InTransit,
-            qualityGrade: sourceBatch.qualityGrade,
-            basePrice: sourceBatch.basePrice,
-            originHash: sourceBatch.originHash,
-            qualityHash: sourceBatch.qualityHash,
-            exists: true,
-            parentBatchId: _batchId, // Link to parent batch
-            childBatchIds: new uint256[](0),
-            isActive: true
-        });
-
-        // Update source batch
-        sourceBatch.availableQuantity -= _quantity;
-        sourceBatch.childBatchIds.push(newBatchId);
-
-        // If source batch is fully transferred, mark as inactive
-        if (sourceBatch.availableQuantity == 0) {
-            sourceBatch.isActive = false;
-        }
-
-        // Add new batch to receiver's batches
-        stakeholderBatches[_to].push(newBatchId);
-
-        // Record the transfer
-        batchTransferHistory[_batchId].push(
-            PartialTransferRecord({
-                fromBatchId: _batchId,
-                toBatchId: newBatchId,
-                from: msg.sender,
-                to: _to,
-                quantity: _quantity,
-                pricePerUnit: _pricePerUnit,
-                timestamp: block.timestamp,
-                transactionHash: _transactionHash
-            })
-        );
-
-        // Also record in the new batch's history
-        batchTransferHistory[newBatchId].push(
-            PartialTransferRecord({
-                fromBatchId: _batchId,
-                toBatchId: newBatchId,
-                from: msg.sender,
-                to: _to,
-                quantity: _quantity,
-                pricePerUnit: _pricePerUnit,
-                timestamp: block.timestamp,
-                transactionHash: _transactionHash
-            })
-        );
-
-        // Transfer payment
-        payable(msg.sender).transfer(totalPrice);
-
-        // Refund excess payment
-        if (msg.value > totalPrice) {
-            payable(msg.sender).transfer(msg.value - totalPrice);
-        }
-
-        emit PartialTransfer(_batchId, newBatchId, _quantity, _to);
-        return newBatchId;
-    }
-
-    // Transfer entire batch (for backward compatibility)
-    function transferFullBatch(
-        uint256 _batchId,
-        address _to,
-        uint256 _totalPrice,
-        string memory _transactionHash
-    )
-        external
-        payable
-        onlyBatchOwner(_batchId)
-        batchExists(_batchId)
-        batchActive(_batchId)
-    {
-        require(stakeholders[_to].isVerified, "Receiver not verified");
-        require(msg.value >= _totalPrice, "Insufficient payment");
-        require(_totalPrice > 0, "Price must be greater than 0");
-
+        require(msg.value >= _price, "Insufficient payment");
+        require(_price > 0, "Price must be greater than 0");
+        
         ProductBatch storage batch = productBatches[_batchId];
         address previousOwner = batch.currentOwner;
-
+        
         // Update batch ownership
         batch.currentOwner = _to;
         batch.status = ProductStatus.InTransit;
-
+        
         // Add to new owner's batches
         stakeholderBatches[_to].push(_batchId);
-
+        
         // Record transaction
-        batchTransferHistory[_batchId].push(
-            PartialTransferRecord({
-                fromBatchId: _batchId,
-                toBatchId: _batchId, // Same batch ID for full transfer
-                from: previousOwner,
-                to: _to,
-                quantity: batch.availableQuantity,
-                pricePerUnit: _totalPrice / batch.availableQuantity,
-                timestamp: block.timestamp,
-                transactionHash: _transactionHash
-            })
-        );
-
-        // Transfer payment
-        payable(previousOwner).transfer(_totalPrice);
-
+        batchTransactions[_batchId].push(Transaction({
+            from: previousOwner,
+            to: _to,
+            timestamp: block.timestamp,
+            price: _price,
+            transactionHash: _transactionHash
+        }));
+        
+        // Transfer payment to previous owner
+        payable(previousOwner).transfer(_price);
+        
         // Refund excess payment
-        if (msg.value > _totalPrice) {
-            payable(msg.sender).transfer(msg.value - _totalPrice);
+        if (msg.value > _price) {
+            payable(msg.sender).transfer(msg.value - _price);
         }
-
-        emit FullTransfer(_batchId, previousOwner, _to, _totalPrice);
+        
+        emit ProductTransferred(_batchId, previousOwner, _to, _price);
     }
-
-    // Get batch genealogy (parent and children)
-    function getBatchGenealogy(
-        uint256 _batchId
-    )
-        external
-        view
-        batchExists(_batchId)
-        returns (
-            uint256 parentBatchId,
-            uint256[] memory childBatchIds,
-            uint256 originalBatchId
-        )
-    {
-        ProductBatch storage batch = productBatches[_batchId];
-
-        // Find the original batch by going up the parent chain
-        uint256 originalId = _batchId;
-        while (productBatches[originalId].parentBatchId != 0) {
-            originalId = productBatches[originalId].parentBatchId;
-        }
-
-        return (batch.parentBatchId, batch.childBatchIds, originalId);
-    }
-
-    // Get all batches derived from an original batch (including splits)
-    function getAllDerivedBatches(
-        uint256 _originalBatchId
-    ) external view returns (uint256[] memory) {
-        require(
-            productBatches[_originalBatchId].parentBatchId == 0,
-            "Not an original batch"
-        );
-
-        uint256[] memory allBatches = new uint256[](100); // Temporary array
-        uint256 count = 0;
-
-        // Add the original batch
-        allBatches[count++] = _originalBatchId;
-
-        // Recursively add all child batches
-        count = _addChildBatches(_originalBatchId, allBatches, count, 10);
-
-        // Create properly sized array
-        uint256[] memory result = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            result[i] = allBatches[i];
-        }
-
-        return result;
-    }
-
-    // Helper function for recursive child batch addition
-    function _addChildBatches(
-        uint256 _batchId,
-        uint256[] memory _allBatches,
-        uint256 _count,
-        uint8 _depthLimit
-    ) internal view returns (uint256) {
-        if (_depthLimit == 0) return count;
-        ProductBatch storage batch = productBatches[_batchId];
-
-        for (uint256 i = 0; i < batch.childBatchIds.length; i++) {
-            uint256 childId = batch.childBatchIds[i];
-            _allBatches[_count++] = childId;
-            _count = _addChildBatches(
-                childId,
-                _allBatches,
-                _count,
-                _depthLimit - 1
-            );
-        }
-
-        return _count;
-    }
-
+    
     // Update product status
     function updateProductStatus(
         uint256 _batchId,
@@ -451,117 +196,81 @@ contract AgriculturalSupplyChain {
         productBatches[_batchId].status = _status;
         emit ProductStatusUpdated(_batchId, _status);
     }
-
-    // Verify quality
+    
+    // Verify quality (can be done by certified inspectors)
     function verifyQuality(
         uint256 _batchId,
         QualityGrade _grade,
         string memory _newQualityHash
     ) external onlyVerifiedStakeholder batchExists(_batchId) {
+        // In a real implementation, you'd have specific quality inspector roles
         productBatches[_batchId].qualityGrade = _grade;
         if (bytes(_newQualityHash).length > 0) {
             productBatches[_batchId].qualityHash = _newQualityHash;
         }
-
+        
         emit QualityVerified(_batchId, _grade, msg.sender);
     }
-
-    // Get batch transfer history
-    function getBatchTransferHistory(
-        uint256 _batchId
-    )
-        external
-        view
-        batchExists(_batchId)
-        returns (PartialTransferRecord[] memory)
-    {
-        return batchTransferHistory[_batchId];
+    
+    // Get batch transaction history
+    function getBatchTransactions(uint256 _batchId) external view batchExists(_batchId) returns (Transaction[] memory) {
+        return batchTransactions[_batchId];
     }
-
+    
     // Get stakeholder's batches
-    function getStakeholderBatches(
-        address _stakeholder
-    ) external view returns (uint256[] memory) {
+    function getStakeholderBatches(address _stakeholder) external view returns (uint256[] memory) {
         return stakeholderBatches[_stakeholder];
     }
-
-    // Get batch details with quantity information
-    function getBatchDetails(
-        uint256 _batchId
-    )
-        external
-        view
-        batchExists(_batchId)
-        returns (
-            address currentOwner,
-            address originalFarmer,
-            string memory productType,
-            uint256 totalQuantity,
-            uint256 availableQuantity,
-            uint256 harvestDate,
-            uint256 expiryDate,
-            ProductStatus status,
-            QualityGrade qualityGrade,
-            uint256 basePrice,
-            string memory originHash,
-            string memory qualityHash,
-            uint256 parentBatchId,
-            bool isActive
-        )
-    {
+    
+    // Get batch details
+    function getBatchDetails(uint256 _batchId) external view batchExists(_batchId) returns (
+        address currentOwner,
+        address farmer,
+        string memory productType,
+        uint256 quantity,
+        uint256 harvestDate,
+        uint256 expiryDate,
+        ProductStatus status,
+        QualityGrade qualityGrade,
+        uint256 basePrice,
+        string memory originHash,
+        string memory qualityHash
+    ) {
         ProductBatch storage batch = productBatches[_batchId];
         return (
             batch.currentOwner,
-            batch.originalFarmer,
+            batch.farmer,
             batch.productType,
-            batch.totalQuantity,
-            batch.availableQuantity,
+            batch.quantity,
             batch.harvestDate,
             batch.expiryDate,
             batch.status,
             batch.qualityGrade,
             batch.basePrice,
             batch.originHash,
-            batch.qualityHash,
-            batch.parentBatchId,
-            batch.isActive
+            batch.qualityHash
         );
     }
-
-    // Check if partial transfer is possible
-    function canTransferPartial(
-        uint256 _batchId,
-        uint256 _quantity
-    ) external view returns (bool) {
-        if (
-            !productBatches[_batchId].exists ||
-            !productBatches[_batchId].isActive
-        ) {
-            return false;
-        }
-        return productBatches[_batchId].availableQuantity >= _quantity;
-    }
-
+    
     // Emergency functions
     function updateAdmin(address _newAdmin) external onlyAdmin {
         require(_newAdmin != address(0), "Invalid admin address");
         admin = _newAdmin;
     }
-
-    // Get stakeholder details (same as before)
-    function getStakeholderDetails(
-        address _stakeholder
-    )
-        external
-        view
-        returns (
-            StakeholderRole role,
-            string memory name,
-            bool isVerified,
-            uint256 registrationTime,
-            string memory dataHash
-        )
-    {
+    
+    // Function to verify stakeholder status
+    function isVerifiedStakeholder(address _stakeholder) external view returns (bool) {
+        return stakeholders[_stakeholder].isVerified;
+    }
+    
+    // Get stakeholder details
+    function getStakeholderDetails(address _stakeholder) external view returns (
+        StakeholderRole role,
+        string memory name,
+        bool isVerified,
+        uint256 registrationTime,
+        string memory dataHash
+    ) {
         Stakeholder storage stakeholder = stakeholders[_stakeholder];
         return (
             stakeholder.role,

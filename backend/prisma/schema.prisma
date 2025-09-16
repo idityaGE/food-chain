@@ -64,14 +64,12 @@ model Stakeholder {
   dataHash String?
 
   // Relations
-  farmedBatches            ProductBatch[]    @relation("FarmerBatches")
-  ownedBatches             ProductBatch[]    @relation("OwnerBatches")
-  sentTransactions         Transaction[]     @relation("SentTransactions")
-  receivedTransactions     Transaction[]     @relation("ReceivedTransactions")
-  sentPartialTransfers     PartialTransfer[] @relation("SentPartialTransfers")
-  receivedPartialTransfers PartialTransfer[] @relation("ReceivedPartialTransfers")
-  qualityReports           QualityReport[]
-  certifications           Certification[]
+  farmedBatches        ProductBatch[]  @relation("FarmerBatches")
+  ownedBatches         ProductBatch[]  @relation("OwnerBatches")
+  sentTransactions     Transaction[]   @relation("SentTransactions")
+  receivedTransactions Transaction[]   @relation("ReceivedTransactions")
+  qualityReports       QualityReport[]
+  certifications       Certification[]
 
   @@map("stakeholders")
 }
@@ -108,41 +106,17 @@ model ProductBatch {
   currentOwner   Stakeholder @relation("OwnerBatches", fields: [currentOwnerId], references: [id])
 
   // Detailed information (hashed on blockchain)
-  originData           OriginData?
-  qualityReports       QualityReport[]
-  transactions         Transaction[]
-  partialTransfer      PartialTransfer[]
-  fromPartialTransfers PartialTransfer[]    @relation("FromBatch")
-  toPartialTransfers   PartialTransfer[]    @relation("ToBatch")
-  batchGenealogy       BatchGenealogy[]
-  certifications       BatchCertification[]
-  storageInfo          StorageInfo[]
+  originData     OriginData?
+  qualityReports QualityReport[]
+  transactions   Transaction[]
+  certifications BatchCertification[]
+  storageInfo    StorageInfo[]
 
   // Hashes stored on blockchain
   originHash  String?
   qualityHash String?
 
   @@map("product_batches")
-}
-
-// Batch genealogy tracking for complex hierarchies
-model BatchGenealogy {
-  id      String       @id @default(cuid())
-  batchId String       @unique
-  batch   ProductBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-
-  originalBatchId String // Root batch ID (the first batch in the chain)
-  parentBatchId   String? // Direct parent batch
-
-  // Hierarchy level (0 = original, 1 = first split, 2 = second level split, etc.)
-  hierarchyLevel Int @default(0)
-
-  // Path from root to this batch (e.g., "1/5/12" means original->split->split)
-  hierarchyPath String
-
-  createdAt DateTime @default(now())
-
-  @@map("batch_genealogy")
 }
 
 model OriginData {
@@ -214,46 +188,6 @@ model QualityReport {
   reportHash String?
 
   @@map("quality_reports")
-}
-
-// New model for tracking partial transfers specifically
-model PartialTransfer {
-  id String @id @default(cuid())
-
-  // Batch relationships
-  fromBatchId String
-  fromBatch   ProductBatch @relation("FromBatch", fields: [fromBatchId], references: [id], onDelete: Cascade)
-  toBatchId   String
-  toBatch     ProductBatch @relation("ToBatch", fields: [toBatchId], references: [id], onDelete: Cascade)
-
-  // Stakeholder relationships
-  fromId String
-  from   Stakeholder @relation("SentPartialTransfers", fields: [fromId], references: [id])
-  toId   String
-  to     Stakeholder @relation("ReceivedPartialTransfers", fields: [toId], references: [id])
-
-  // Transfer details
-  quantity     Decimal // Amount being transferred
-  pricePerUnit Decimal
-  totalPrice   Decimal
-  currency     String  @default("INR")
-
-  // Transaction metadata
-  transferDate DateTime @default(now())
-  transferType String   @default("PARTIAL_SALE") // "PARTIAL_SALE", "PARTIAL_TRANSFER"
-
-  // Blockchain reference
-  blockchainTxHash String? // Ethereum transaction hash
-  transactionHash  String? // Hash of this transfer data
-
-  // Location and conditions
-  location       String?
-  gpsCoordinates Json?
-  notes          String?
-  ProductBatch   ProductBatch? @relation(fields: [productBatchId], references: [id])
-  productBatchId String?
-
-  @@map("partial_transfers")
 }
 
 model Transaction {
@@ -464,35 +398,14 @@ model PriceHistory {
   @@map("price_history")
 }
 
-// Indexes for better performance (optimized for batch splitting queries)
+// Indexes for better performance
 // Add these as comments for reference when setting up the database
 
-// Original indexes
-// CREATE INDEX idx_product_batches_farmer_id ON product_batches(original_farmer_id);
-// CREATE INDEX idx_product_batches_current_owner ON product_batches(current_owner_id);
+// CREATE INDEX idx_product_batches_farmer_id ON product_batches(farmer_id);
 // CREATE INDEX idx_product_batches_status ON product_batches(status);
 // CREATE INDEX idx_product_batches_harvest_date ON product_batches(harvest_date);
-// CREATE INDEX idx_product_batches_is_active ON product_batches(is_active);
-
-// Batch hierarchy indexes
-// CREATE INDEX idx_product_batches_parent_id ON product_batches(parent_batch_id);
-// CREATE INDEX idx_batch_genealogy_original_batch ON batch_genealogy(original_batch_id);
-// CREATE INDEX idx_batch_genealogy_parent_batch ON batch_genealogy(parent_batch_id);
-// CREATE INDEX idx_batch_genealogy_hierarchy_level ON batch_genealogy(hierarchy_level);
-
-// Transfer indexes
 // CREATE INDEX idx_transactions_batch_id ON transactions(batch_id);
 // CREATE INDEX idx_transactions_date ON transactions(transaction_date);
-// CREATE INDEX idx_partial_transfers_from_batch ON partial_transfers(from_batch_id);
-// CREATE INDEX idx_partial_transfers_to_batch ON partial_transfers(to_batch_id);
-// CREATE INDEX idx_partial_transfers_date ON partial_transfers(transfer_date);
-
-// Quality and other indexes
 // CREATE INDEX idx_quality_reports_batch_id ON quality_reports(batch_id);
 // CREATE INDEX idx_stakeholders_wallet_address ON stakeholders(wallet_address);
 // CREATE INDEX idx_stakeholders_role ON stakeholders(role);
-
-// Composite indexes for complex queries
-// CREATE INDEX idx_batches_active_owner ON product_batches(is_active, current_owner_id);
-// CREATE INDEX idx_batches_status_owner ON product_batches(status, current_owner_id);
-// CREATE INDEX idx_genealogy_original_level ON batch_genealogy(original_batch_id, hierarchy_level);
