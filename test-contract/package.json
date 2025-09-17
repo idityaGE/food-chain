@@ -1,0 +1,17 @@
+{
+  "name": "prog-js-link",
+  "module": "index.ts",
+  "devDependencies": {
+    "@typechain/ethers-v6": "^0.5.1",
+    "@types/bun": "latest",
+    "typechain": "^8.3.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ethers": "^6.15.0"
+  }
+}
