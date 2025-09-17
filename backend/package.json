@@ -15,5 +15,11 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "prisma": "^6.16.1"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "db:dev": "bunx prisma dev",
+    "db:generate": "bunx prisma generate",
+    "db:studio": "bunx prisma studio"
   }
 }
