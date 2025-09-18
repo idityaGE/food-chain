@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { type AgriculturalSupplyChain, AgriculturalSupplyChain__factory } from '../../generated/typechain'
+import { type AgriculturalSupplyChain, AgriculturalSupplyChain__factory } from '@generated/typechain'
 import fs from 'fs'
 
 export const provider = new ethers.JsonRpcProvider(process.env.RPC_URL!)

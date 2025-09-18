@@ -1,4 +1,4 @@
-import { $Enums } from '../../generated/prisma';
+import { $Enums } from '@generated/prisma';
 import { z } from 'zod'
 
 export const RegisterUserSchema = z.object({
