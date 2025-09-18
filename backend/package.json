@@ -4,8 +4,10 @@
   "type": "module",
   "private": true,
   "devDependencies": {
+    "@typechain/ethers-v6": "^0.5.1",
     "@types/bun": "latest",
-    "@types/express": "^5.0.3"
+    "@types/express": "^5.0.3",
+    "typechain": "^8.3.2"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -13,6 +15,7 @@
   "dependencies": {
     "@prisma/client": "^6.16.1",
     "cors": "^2.8.5",
+    "ethers": "^6.15.0",
     "express": "^5.1.0",
     "prisma": "^6.16.1"
   },
