@@ -44,7 +44,8 @@ model Stakeholder {
   walletAddress    String          @unique
   role             StakeholderRole
   name             String
-  email            String?         @unique
+  email            String          @unique
+  password         String
   phone            String?
   isVerified       Boolean         @default(false)
   registrationDate DateTime        @default(now())
