@@ -70,7 +70,10 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to create user");
   }
 
-  return res.status(200).json(new ApiResponse(200, {}, "User registered successfully"));
+  return res.status(200).json(new ApiResponse(200, {
+    id: user.id,
+    txHash: tx.hash
+  }, "User registered successfully"));
 });
 
 export { registerUser };

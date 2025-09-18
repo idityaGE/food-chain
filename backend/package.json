@@ -5,8 +5,11 @@
   "private": true,
   "devDependencies": {
     "@typechain/ethers-v6": "^0.5.1",
+    "@types/bcrypt": "^6.0.0",
     "@types/bun": "latest",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/morgan": "^1.9.10",
     "typechain": "^8.3.2"
   },
   "peerDependencies": {
@@ -14,12 +17,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.16.1",
-    "@types/bcrypt": "^6.0.0",
-    "@types/cors": "^2.8.19",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "ethers": "^6.15.0",
     "express": "^5.1.0",
+    "morgan": "^1.10.1",
     "prisma": "^6.16.1",
     "zod": "^4.1.9"
   },
