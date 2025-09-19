@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { registerBatch } from "@/controllers/batch.controller";
+import { registerBatch, transferBatch } from "@/controllers/batch.controller";
 import { authMiddleware } from "@/middlewares/auth.middleware";
 
 const router = Router();
 
 router.post('/create', authMiddleware, registerBatch);
-// router.post('/transfer', authMiddleware, );
-// router.post('/quality-check', authMiddleware, );
+router.post('/transfer', authMiddleware, transferBatch);
 
 // router.get('/:batchId', );
 

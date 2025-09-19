@@ -22,4 +22,21 @@ export const CreateBatchSchema = z.object({
   path: ["expiryDate"]
 });
 
+export const TransferBatchSchema = z.object({
+  batchId: z.string().min(1, "Batch ID is required"),
+  toStakeholderId: z.string().min(1, "Recipient stakeholder ID is required"),
+  pricePerUnit: z.number().positive("Price per unit must be positive"),
+  quantity: z.number().positive("Quantity must be positive").optional(),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "CRYPTO"]).optional(),
+  deliveryDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
+    message: "Invalid delivery date format"
+  }).optional(),
+  location: z.string().optional(),
+  transportMethod: z.enum(["TRUCK", "RAIL", "AIR", "SHIP"]).optional(),
+  vehicleNumber: z.string().optional(),
+  notes: z.string().optional(),
+  conditions: z.string().optional(),
+});
+
 export type CreateBatch = z.infer<typeof CreateBatchSchema>;
+export type TransferBatch = z.infer<typeof TransferBatchSchema>;

@@ -534,7 +534,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
       _transactionHash: string
     ],
     [void],
-    "payable"
+    "nonpayable"
   >;
 
   updateAdmin: TypedContractMethod<
@@ -745,7 +745,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
       _transactionHash: string
     ],
     [void],
-    "payable"
+    "nonpayable"
   >;
   getFunction(
     nameOrSignature: "updateAdmin"

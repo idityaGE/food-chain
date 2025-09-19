@@ -7,7 +7,7 @@ import { asyncHandler } from "@/utils/asyncHandler"
 import { ApiError } from "@/utils/ApiError";
 import { ApiResponse } from "@/utils/ApiResponse";
 
-import { CreateBatchSchema } from '@/types/batch';
+import { CreateBatchSchema, TransferBatchSchema } from '@/types/batch';
 import { ethers } from 'ethers';
 
 const registerBatch = asyncHandler(async (req, res) => {
@@ -65,17 +65,20 @@ const registerBatch = asyncHandler(async (req, res) => {
       throw new ApiError(500, "Transaction failed");
     }
 
-    const batchCreatedEvent = receipt.logs.find((log: any) =>
-      log.topics[0] === ethers.id("ProductBatchCreated(uint256,address,string)")
-    );
+    const event = receipt.logs
+      .map(log => {
+        try {
+          return contract.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .filter(e => e && e.name === "ProductBatchCreated")[0];
 
     let blockchainBatchId: number;
-    if (batchCreatedEvent) {
-      const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
-        ['uint256'],
-        batchCreatedEvent.data
-      );
-      blockchainBatchId = Number(decoded[0]);
+    if (event) {
+      const batchId = event.args.batchId.toString();
+      blockchainBatchId = Number(batchId);
     } else {
       throw new ApiError(500, "Failed to get batch ID from blockchain");
     }
@@ -126,4 +129,170 @@ const registerBatch = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerBatch };
+const transferBatch = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    throw new ApiError(401, "Authentication required");
+  }
+
+  const { success, data } = TransferBatchSchema.safeParse(req.body);
+  if (!success) {
+    throw new ApiError(400, "Invalid transfer data provided");
+  }
+
+  try {
+    const batch = await prisma.productBatch.findUnique({
+      where: { id: data.batchId },
+      include: {
+        farmer: true,
+        currentOwner: true
+      }
+    });
+    if (!batch) {
+      throw new ApiError(404, "Batch not found");
+    }
+
+    if (batch.currentOwnerId !== user.id) {
+      throw new ApiError(403, "You are not the current owner of this batch");
+    }
+
+    const toStakeholder = await prisma.stakeholder.findUnique({
+      where: { id: data.toStakeholderId }
+    });
+    if (!toStakeholder) {
+      throw new ApiError(404, "Recipient stakeholder not found");
+    }
+    if (!toStakeholder.isVerified) {
+      throw new ApiError(400, "Recipient stakeholder is not verified");
+    }
+
+    const validTransfers: Record<string, string[]> = {
+      'FARMER': ['DISTRIBUTOR', 'RETAILER', 'CONSUMER'],
+      'DISTRIBUTOR': ['RETAILER', 'CONSUMER'],
+      'RETAILER': ['CONSUMER'],
+      'CONSUMER': []
+    };
+
+    if (!validTransfers[user.role]?.includes(toStakeholder.role)) {
+      throw new ApiError(400, `Cannot transfer from ${user.role} to ${toStakeholder.role}`);
+    }
+
+    const transferQuantity = data.quantity || Number(batch.quantity);
+    const totalPrice = data.pricePerUnit * transferQuantity;
+    const totalPriceInWei = ethers.parseEther(totalPrice.toString());
+
+    const transactionData = {
+      batchId: batch.batchId,
+      from: user.id,
+      to: data.toStakeholderId,
+      quantity: transferQuantity,
+      pricePerUnit: data.pricePerUnit,
+      totalPrice: totalPrice,
+      timestamp: new Date().toISOString(),
+      paymentMethod: data.paymentMethod,
+      transportMethod: data.transportMethod,
+      vehicleNumber: data.vehicleNumber,
+      location: data.location,
+      notes: data.notes,
+      conditions: data.conditions
+    };
+
+    const transactionHash = await hash(JSON.stringify(transactionData));
+    if (!transactionHash) {
+      throw new ApiError(500, "Failed to create transaction hash");
+    }
+
+    const contract = await contractPromise;
+
+    const tx = await contract.transferBatch(
+      batch.batchId,
+      user.publicKey,
+      toStakeholder.publicKey,
+      totalPriceInWei,
+      transactionHash,
+      {
+        nonce: await provider.getTransactionCount(address),
+      }
+    );
+
+    const receipt = await tx.wait();
+    if (!receipt) {
+      throw new ApiError(500, "Blockchain transaction failed");
+    }
+
+    const result = await prisma.$transaction(async (prisma) => {
+      const updatedBatch = await prisma.productBatch.update({
+        where: { id: data.batchId },
+        data: {
+          currentOwnerId: data.toStakeholderId,
+          status: "IN_TRANSIT",
+          updatedAt: new Date()
+        }
+      });
+
+      const transaction = await prisma.transaction.create({
+        data: {
+          batchId: data.batchId,
+          fromId: user.id,
+          toId: data.toStakeholderId,
+          transactionType: "SALE",
+          quantity: transferQuantity,
+          pricePerUnit: data.pricePerUnit,
+          totalPrice: totalPrice,
+          currency: "INR",
+          paymentMethod: data.paymentMethod || "BANK_TRANSFER",
+          paymentStatus: "COMPLETED",
+          transactionDate: new Date(),
+          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
+          location: data.location,
+          transportMethod: data.transportMethod,
+          vehicleNumber: data.vehicleNumber,
+          notes: data.notes,
+          conditions: data.conditions,
+          blockchainTxHash: tx.hash,
+          transactionHash: transactionHash
+        }
+      });
+
+      return { updatedBatch, transaction };
+    });
+
+    return res.status(200).json(new ApiResponse(200, {
+      batchId: batch.id,
+      blockchainBatchId: batch.batchId,
+      transactionId: result.transaction.id,
+      txHash: tx.hash,
+      from: {
+        id: user.id,
+        name: user.name,
+        role: user.role
+      },
+      to: {
+        id: toStakeholder.id,
+        name: toStakeholder.name,
+        role: toStakeholder.role
+      },
+      transferDetails: {
+        quantity: transferQuantity,
+        pricePerUnit: data.pricePerUnit,
+        totalPrice: totalPrice,
+        currency: "INR"
+      }
+    }, "Batch transferred successfully"));
+
+  } catch (error: any) {
+    console.error("Error transferring batch:", error);
+
+    if (error.code === 'CALL_EXCEPTION') {
+      throw new ApiError(400, `Smart contract error: ${error.reason || error.message}`);
+    }
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(500, "Failed to transfer batch");
+  }
+});
+
+export { registerBatch, transferBatch };

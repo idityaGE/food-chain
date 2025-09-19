@@ -202,7 +202,7 @@ contract AgriculturalSupplyChain {
         address _to,
         uint256 _price,
         string memory _transactionHash
-    ) external payable onlyBatchOwner(_batchId, _from) batchExists(_batchId) {
+    ) external onlyBatchOwner(_batchId, _from) batchExists(_batchId) {
         require(stakeholders[_to].isVerified, "Receiver not verified");
         require(_price > 0, "Price must be greater than 0");
 
@@ -226,14 +226,6 @@ contract AgriculturalSupplyChain {
                 transactionHash: _transactionHash
             })
         );
-
-        // Transfer payment to previous owner
-        payable(previousOwner).transfer(_price);
-
-        // Refund excess payment
-        if (msg.value > _price) {
-            payable(msg.sender).transfer(msg.value - _price);
-        }
 
         emit ProductTransferred(_batchId, previousOwner, _to, _price);
     }
