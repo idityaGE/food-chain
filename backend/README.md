@@ -1,15 +1,8 @@
-# backend
+# regenerate the ABI and copy to backend
 
-To install dependencies:
+forge build
+cp ~/experiments/sih-project/blockchain/food-chain/out/AgriculturalSupplyChain.sol/AgriculturalSupplyChain.json ~/experiments/sih-project/backend/abi/
 
-```bash
-bun install
-```
+### run this inside the backend directory
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.2.16. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+bunx typechain --target ethers-v6 --out-dir generated/typechain './abi/\*.json'

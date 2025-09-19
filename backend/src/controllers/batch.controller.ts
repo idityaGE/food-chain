@@ -295,4 +295,272 @@ const transferBatch = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerBatch, transferBatch };
+const getBatch = asyncHandler(async (req, res) => {
+  const { batchId } = req.params;
+
+  if (!batchId) {
+    throw new ApiError(400, "Batch ID is required");
+  }
+
+  try {
+    const batch = await prisma.productBatch.findUnique({
+      where: { id: batchId },
+      include: {
+        farmer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            location: true,
+            businessName: true,
+            profileImage: true,
+            isVerified: true,
+            registrationDate: true
+          }
+        },
+        currentOwner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            location: true,
+            businessName: true,
+            profileImage: true,
+            isVerified: true
+          }
+        },
+        transactions: {
+          include: {
+            from: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                businessName: true,
+                location: true
+              }
+            },
+            to: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                businessName: true,
+                location: true
+              }
+            }
+          },
+          orderBy: {
+            transactionDate: 'asc'
+          }
+        },
+        qualityReports: {
+          include: {
+            inspector: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                businessName: true
+              }
+            }
+          },
+          orderBy: {
+            reportDate: 'desc'
+          }
+        },
+        originData: true,
+        certifications: {
+          include: {
+            certification: {
+              include: {
+                stakeholder: {
+                  select: {
+                    id: true,
+                    name: true,
+                    businessName: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        storageInfo: {
+          orderBy: {
+            storageStartDate: 'desc'
+          }
+        }
+      }
+    });
+
+    if (!batch) {
+      throw new ApiError(404, "Batch not found");
+    }
+
+    const supplyChainJourney: any[] = [
+      {
+        stage: "Production",
+        stakeholder: {
+          id: batch.farmer.id,
+          name: batch.farmer.name,
+          role: batch.farmer.role,
+          businessName: batch.farmer.businessName,
+          location: batch.farmer.location
+        },
+        timestamp: batch.createdAt,
+        status: "PRODUCED",
+        isOrigin: true
+      }
+    ];
+
+    // Add transaction stages to supply chain journey
+    batch.transactions.forEach((transaction, index) => {
+      supplyChainJourney.push({
+        stage: `Transfer ${index + 1}`,
+        stakeholder: {
+          id: transaction.to.id,
+          name: transaction.to.name,
+          role: transaction.to.role,
+          businessName: transaction.to.businessName,
+          location: transaction.to.location
+        },
+        timestamp: transaction.transactionDate,
+        status: "IN_TRANSIT",
+        transactionDetails: {
+          quantity: transaction.quantity,
+          pricePerUnit: transaction.pricePerUnit,
+          totalPrice: transaction.totalPrice,
+          paymentMethod: transaction.paymentMethod,
+          transportMethod: transaction.transportMethod,
+          vehicleNumber: transaction.vehicleNumber
+        }
+      });
+    });
+
+    // Add current status if the batch has been delivered
+    if (batch.status === "DELIVERED" || batch.status === "SOLD") {
+      const lastIndex = supplyChainJourney.length - 1;
+      if (lastIndex >= 0 && supplyChainJourney[lastIndex]) {
+        supplyChainJourney[lastIndex].status = batch.status;
+      }
+    }
+
+    // Calculate batch analytics
+    const analytics = {
+      totalTransfers: batch.transactions.length,
+      totalDistance: 0, // Could be calculated from GPS coordinates
+      averagePrice: batch.transactions.length > 0 
+        ? batch.transactions.reduce((sum, t) => sum + Number(t.pricePerUnit), 0) / batch.transactions.length 
+        : Number(batch.basePrice),
+      qualityReportsCount: batch.qualityReports.length,
+      certificationsCount: batch.certifications.length,
+      storageLocationsCount: batch.storageInfo.length,
+      daysInSupplyChain: Math.floor((new Date().getTime() - batch.createdAt.getTime()) / (1000 * 60 * 60 * 24)),
+      estimatedShelfLife: Math.floor((batch.expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    };
+
+    // Format the response
+    const response = {
+      batch: {
+        id: batch.id,
+        batchId: batch.batchId,
+        blockchainHash: batch.blockchainHash,
+        productName: batch.productName,
+        productType: batch.productType,
+        variety: batch.variety,
+        quantity: batch.quantity,
+        unit: batch.unit,
+        harvestDate: batch.harvestDate,
+        expiryDate: batch.expiryDate,
+        status: batch.status,
+        qualityGrade: batch.qualityGrade,
+        basePrice: batch.basePrice,
+        currency: batch.currency,
+        originHash: batch.originHash,
+        qualityHash: batch.qualityHash,
+        createdAt: batch.createdAt,
+        updatedAt: batch.updatedAt
+      },
+      stakeholders: {
+        farmer: batch.farmer,
+        currentOwner: batch.currentOwner
+      },
+      supplyChainJourney,
+      transactions: batch.transactions.map(t => ({
+        id: t.id,
+        transactionType: t.transactionType,
+        quantity: t.quantity,
+        pricePerUnit: t.pricePerUnit,
+        totalPrice: t.totalPrice,
+        currency: t.currency,
+        paymentMethod: t.paymentMethod,
+        paymentStatus: t.paymentStatus,
+        transactionDate: t.transactionDate,
+        deliveryDate: t.deliveryDate,
+        location: t.location,
+        transportMethod: t.transportMethod,
+        vehicleNumber: t.vehicleNumber,
+        notes: t.notes,
+        conditions: t.conditions,
+        blockchainTxHash: t.blockchainTxHash,
+        from: t.from,
+        to: t.to
+      })),
+      qualityReports: batch.qualityReports.map(qr => ({
+        id: qr.id,
+        grade: qr.grade,
+        appearance: qr.appearance,
+        texture: qr.texture,
+        taste: qr.taste,
+        aroma: qr.aroma,
+        moistureContent: qr.moistureContent,
+        sugarContent: qr.sugarContent,
+        acidity: qr.acidity,
+        pesticideResidue: qr.pesticideResidue,
+        heavyMetals: qr.heavyMetals,
+        microbiological: qr.microbiological,
+        notes: qr.notes,
+        images: qr.images,
+        reportDate: qr.reportDate,
+        expiryDate: qr.expiryDate,
+        inspector: qr.inspector
+      })),
+      originData: batch.originData,
+      certifications: batch.certifications.map(bc => ({
+        id: bc.id,
+        appliedDate: bc.appliedDate,
+        verifiedDate: bc.verifiedDate,
+        isVerified: bc.isVerified,
+        certification: {
+          id: bc.certification.id,
+          type: bc.certification.type,
+          certifyingBody: bc.certification.certifyingBody,
+          certificateNumber: bc.certification.certificateNumber,
+          issuedDate: bc.certification.issuedDate,
+          expiryDate: bc.certification.expiryDate,
+          isValid: bc.certification.isValid,
+          scope: bc.certification.scope,
+          certificateUrl: bc.certification.certificateUrl,
+          stakeholder: bc.certification.stakeholder
+        }
+      })),
+      storageInfo: batch.storageInfo,
+      analytics
+    };
+
+    return res.status(200).json(new ApiResponse(200, response, "Batch details retrieved successfully"));
+
+  } catch (error: any) {
+    console.error("Error fetching batch details:", error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(500, "Failed to fetch batch details");
+  }
+});
+
+export { registerBatch, transferBatch, getBatch };
