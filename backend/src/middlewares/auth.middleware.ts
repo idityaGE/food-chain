@@ -2,11 +2,12 @@ import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "@/services/tokenService";
 import { ApiError } from "@/utils/ApiError";
 import { prisma } from "@/db";
+import type { User } from "@/types/user";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
+      user?: User;
     }
   }
 }

@@ -86,6 +86,8 @@ export interface AgriculturalSupplyChainInterface extends Interface {
   encodeFunctionData(
     functionFragment: "createProductBatch",
     values: [
+      AddressLike,
+      string,
       string,
       BigNumberish,
       BigNumberish,
@@ -137,7 +139,7 @@ export interface AgriculturalSupplyChainInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "transferBatch",
-    values: [BigNumberish, AddressLike, BigNumberish, string]
+    values: [BigNumberish, AddressLike, AddressLike, BigNumberish, string]
   ): string;
   encodeFunctionData(
     functionFragment: "updateAdmin",
@@ -145,7 +147,7 @@ export interface AgriculturalSupplyChainInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "updateProductStatus",
-    values: [BigNumberish, BigNumberish]
+    values: [BigNumberish, AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "verifyQuality",
@@ -371,6 +373,8 @@ export interface AgriculturalSupplyChain extends BaseContract {
 
   createProductBatch: TypedContractMethod<
     [
+      _farmerAddress: AddressLike,
+      _productName: string,
       _productType: string,
       _quantity: BigNumberish,
       _harvestDate: BigNumberish,
@@ -390,6 +394,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         string,
         string,
         string,
+        string,
         bigint,
         bigint,
         bigint,
@@ -401,6 +406,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
       ] & {
         currentOwner: string;
         farmer: string;
+        productName: string;
         productType: string;
         quantity: bigint;
         harvestDate: bigint;
@@ -457,6 +463,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         string,
         string,
         string,
+        string,
         bigint,
         bigint,
         bigint,
@@ -470,6 +477,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         batchId: bigint;
         currentOwner: string;
         farmer: string;
+        productName: string;
         productType: string;
         quantity: bigint;
         harvestDate: bigint;
@@ -520,6 +528,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
   transferBatch: TypedContractMethod<
     [
       _batchId: BigNumberish,
+      _from: AddressLike,
       _to: AddressLike,
       _price: BigNumberish,
       _transactionHash: string
@@ -535,7 +544,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
   >;
 
   updateProductStatus: TypedContractMethod<
-    [_batchId: BigNumberish, _status: BigNumberish],
+    [_batchId: BigNumberish, _owner: AddressLike, _status: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -572,6 +581,8 @@ export interface AgriculturalSupplyChain extends BaseContract {
     nameOrSignature: "createProductBatch"
   ): TypedContractMethod<
     [
+      _farmerAddress: AddressLike,
+      _productName: string,
       _productType: string,
       _quantity: BigNumberish,
       _harvestDate: BigNumberish,
@@ -592,6 +603,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         string,
         string,
         string,
+        string,
         bigint,
         bigint,
         bigint,
@@ -603,6 +615,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
       ] & {
         currentOwner: string;
         farmer: string;
+        productName: string;
         productType: string;
         quantity: bigint;
         harvestDate: bigint;
@@ -657,6 +670,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         string,
         string,
         string,
+        string,
         bigint,
         bigint,
         bigint,
@@ -670,6 +684,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
         batchId: bigint;
         currentOwner: string;
         farmer: string;
+        productName: string;
         productType: string;
         quantity: bigint;
         harvestDate: bigint;
@@ -724,6 +739,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
   ): TypedContractMethod<
     [
       _batchId: BigNumberish,
+      _from: AddressLike,
       _to: AddressLike,
       _price: BigNumberish,
       _transactionHash: string
@@ -737,7 +753,7 @@ export interface AgriculturalSupplyChain extends BaseContract {
   getFunction(
     nameOrSignature: "updateProductStatus"
   ): TypedContractMethod<
-    [_batchId: BigNumberish, _status: BigNumberish],
+    [_batchId: BigNumberish, _owner: AddressLike, _status: BigNumberish],
     [void],
     "nonpayable"
   >;

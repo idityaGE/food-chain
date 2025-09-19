@@ -1,3 +1,4 @@
+import { Prisma } from '@generated/prisma';
 import { $Enums } from '@generated/prisma';
 import { z } from 'zod'
 
@@ -19,3 +20,21 @@ export const LoginUserSchema = z.object({
 
 export type RegisterUser = z.infer<typeof RegisterUserSchema>;
 export type LoginUser = z.infer<typeof LoginUserSchema>;
+
+export type User = {
+  name: string;
+  email: string;
+  phone: string | null;
+  location: string | null;
+  profileImage: string | null;
+  businessName: string | null;
+  role: $Enums.StakeholderRole;
+  id: string;
+  isVerified: boolean;
+  registrationDate: Date;
+  description: string | null;
+  gpsCoordinates: Prisma.JsonValue | null;
+  businessLicense: string | null;
+  taxId: string | null;
+  dataHash: string | null;
+}

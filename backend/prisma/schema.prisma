@@ -41,13 +41,15 @@ enum CertificationType {
 
 model Stakeholder {
   id               String          @id @default(cuid())
-  walletAddress    String          @unique
+  privateKey       String          @unique
+  publicKey        String          @unique
   role             StakeholderRole
   name             String
   email            String          @unique
   password         String
   phone            String?
-  isVerified       Boolean         @default(false)
+  // TODO: Create a route for verify the stakeholder
+  isVerified       Boolean         @default(true)
   registrationDate DateTime        @default(now())
 
   // Profile details
@@ -81,6 +83,7 @@ model ProductBatch {
   blockchainHash String? // Transaction hash when created on blockchain
 
   // Basic product info
+  productName String
   productType String
   variety     String?
   quantity    Decimal // in kg
