@@ -1,5 +1,5 @@
 import { prisma } from '@/db';
-import { RegisterUserSchema, LoginUserSchema } from '@/types/user';
+import { RegisterUserSchema, LoginUserSchema, roleMapping } from '@/types/user';
 
 import contractPromise, { provider, address } from '@/services/contractManager';
 import { hash, verifyHash } from '@/services/hashService';
@@ -44,7 +44,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   const tx = await contract.registerStakeholder(
     wallet.address,
-    1,
+    roleMapping[data.role],
     data.name,
     dataHash,
     {
@@ -56,7 +56,8 @@ const registerUser = asyncHandler(async (req, res) => {
   const user = await prisma.stakeholder.create({
     data: {
       name: data.name,
-      walletAddress: wallet.privateKey,
+      privateKey: wallet.privateKey,
+      publicKey: wallet.address,
       password: hashedPassword,
       email: data.email,
       role: data.role,
@@ -71,7 +72,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken({ id: user.id, role: user.role }, "30d");
-  const { password, walletAddress, ...userData } = user;
+  const { password, privateKey, ...userData } = user;
 
   return res.status(200).json(new ApiResponse(200, {
     user: userData,
@@ -103,7 +104,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const token = generateToken({ id: user.id, role: user.role }, "30d");
 
-  const { password, walletAddress, ...userData } = user;
+  const { password, privateKey, ...userData } = user;
 
   return res.status(200).json(new ApiResponse(200, {
     user: userData,

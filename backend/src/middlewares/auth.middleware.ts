@@ -37,8 +37,8 @@ export const authMiddleware = async (
       throw new ApiError(401, "User not found");
     }
 
-    const { password, walletAddress, ...userData } = user;
-
+    const { password, privateKey, ...userData } = user;
+    
     req.user = userData;
 
     next();

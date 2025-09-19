@@ -2,6 +2,14 @@ import { Prisma } from '@generated/prisma';
 import { $Enums } from '@generated/prisma';
 import { z } from 'zod'
 
+export const roleMapping = {
+  'FARMER': 0,
+  'DISTRIBUTOR': 1,
+  'RETAILER': 2,
+  'CONSUMER': 3,
+  'QUALITY_INSPECTOR': 4
+};
+
 export const RegisterUserSchema = z.object({
   name: z.string(),
   email: z.email(),
@@ -30,6 +38,7 @@ export type User = {
   businessName: string | null;
   role: $Enums.StakeholderRole;
   id: string;
+  publicKey: string;
   isVerified: boolean;
   registrationDate: Date;
   description: string | null;

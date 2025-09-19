@@ -2,24 +2,26 @@
 pragma solidity ^0.8.19;
 
 contract AgriculturalSupplyChain {
-    // Enums for better code readability
+    
     enum StakeholderRole {
-        Farmer,
-        Distributor,
-        Retailer,
-        Consumer
+        FARMER,
+        DISTRIBUTOR,
+        RETAILER,
+        CONSUMER,
+        QUALITY_INSPECTOR
     }
     enum ProductStatus {
-        Produced,
-        InTransit,
-        Delivered,
-        Sold
+        PRODUCED,
+        IN_TRANSIT,
+        DELIVERED,
+        SOLD,
+        EXPIRED
     }
     enum QualityGrade {
         A,
         B,
         C,
-        Rejected
+        REJECTED
     }
 
     // Events for transparency and tracking
@@ -96,9 +98,9 @@ contract AgriculturalSupplyChain {
         _;
     }
 
-    modifier onlyVerifiedStakeholder() {
+    modifier onlyVerifiedStakeholder(address _stakeholder) {
         require(
-            stakeholders[msg.sender].isVerified,
+            stakeholders[_stakeholder].isVerified,
             "Stakeholder not verified"
         );
         _;
@@ -156,9 +158,9 @@ contract AgriculturalSupplyChain {
         uint256 _basePrice,
         string memory _originHash,
         string memory _qualityHash
-    ) external onlyVerifiedStakeholder returns (uint256) {
+    ) external onlyVerifiedStakeholder(_farmerAddress) returns (uint256) {
         require(
-            stakeholders[_farmerAddress].role == StakeholderRole.Farmer,
+            stakeholders[_farmerAddress].role == StakeholderRole.FARMER,
             "Only farmers can create batches"
         );
         require(_quantity > 0, "Quantity must be greater than 0");
@@ -179,7 +181,7 @@ contract AgriculturalSupplyChain {
             quantity: _quantity,
             harvestDate: _harvestDate,
             expiryDate: _expiryDate,
-            status: ProductStatus.Produced,
+            status: ProductStatus.PRODUCED,
             qualityGrade: QualityGrade.A, // Default grade
             basePrice: _basePrice,
             originHash: _originHash,
@@ -209,7 +211,7 @@ contract AgriculturalSupplyChain {
 
         // Update batch ownership
         batch.currentOwner = _to;
-        batch.status = ProductStatus.InTransit;
+        batch.status = ProductStatus.IN_TRANSIT;
 
         // Add to new owner's batches
         stakeholderBatches[_to].push(_batchId);
@@ -251,7 +253,7 @@ contract AgriculturalSupplyChain {
         uint256 _batchId,
         QualityGrade _grade,
         string memory _newQualityHash
-    ) external onlyVerifiedStakeholder batchExists(_batchId) {
+    ) external onlyVerifiedStakeholder(msg.sender) batchExists(_batchId) {
         // In a real implementation, you'd have specific quality inspector roles
         productBatches[_batchId].qualityGrade = _grade;
         if (bytes(_newQualityHash).length > 0) {
