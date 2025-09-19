@@ -1,9 +1,10 @@
 import { prisma } from '@/db';
-import { RegisterUserSchema } from '@/types/user';
+import { RegisterUserSchema, LoginUserSchema } from '@/types/user';
 
 import contractPromise, { provider, address } from '@/services/contractManager';
-import { hash } from '@/services/hashService';
+import { hash, verifyHash } from '@/services/hashService';
 import { getRandomWallet } from '@/services/walletService';
+import { generateToken } from '@/services/tokenService';
 
 import { asyncHandler } from "@/utils/asyncHandler"
 import { ApiError } from "@/utils/ApiError";
@@ -65,15 +66,59 @@ const registerUser = asyncHandler(async (req, res) => {
       location: data.location,
     }
   })
-
   if (!user) {
     throw new ApiError(500, "Failed to create user");
   }
 
+  const token = generateToken({ id: user.id, role: user.role }, "30d");
+  const { password, walletAddress, ...userData } = user;
+
   return res.status(200).json(new ApiResponse(200, {
-    id: user.id,
-    txHash: tx.hash
+    user: userData,
+    txHash: tx.hash,
+    token
   }, "User registered successfully"));
 });
 
-export { registerUser };
+const loginUser = asyncHandler(async (req, res) => {
+  const { success, data } = LoginUserSchema.safeParse(req.body);
+  if (!success) {
+    throw new ApiError(400, "Invalid login credentials");
+  }
+
+  const user = await prisma.stakeholder.findFirst({
+    where: {
+      email: data.email
+    }
+  });
+
+  if (!user) {
+    throw new ApiError(401, "Invalid email or password");
+  }
+
+  const isPasswordValid = await verifyHash(data.password, user.password);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid email or password");
+  }
+
+  const token = generateToken({ id: user.id, role: user.role }, "30d");
+
+  const { password, walletAddress, ...userData } = user;
+
+  return res.status(200).json(new ApiResponse(200, {
+    user: userData,
+    token
+  }, "Login successful"));
+});
+
+const getUserProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, { user }, "User profile retrieved successfully"));
+});
+
+export { registerUser, loginUser, getUserProfile };
