@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 app.use('/api/users', userRouter);
-app.use('/api/batches', batchRouter);
+// app.use('/api/batches', batchRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

@@ -113,7 +113,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = req.user;
-
   if (!user) {
     throw new ApiError(404, "User not found");
   }
