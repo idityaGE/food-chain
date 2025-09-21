@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form";
 
 import { useAuth } from "@/hooks/useAuth";
-import { authApi, ApiError } from "@/utils/api";
+import { Api, ApiError } from "@/utils/api";
 import { CreateBatch, CreateBatchSchema } from "@/types/batch";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +51,13 @@ export function CreateBatchForm() {
   async function onSubmit(data: CreateBatch) {
     setIsSubmitting(true);
     setError(null);
+    
+    if (!token) {
+      setError("Authentication required. Please log in again.");
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
       // Convert dates to ISO format
       const formattedData = {
@@ -59,7 +66,7 @@ export function CreateBatchForm() {
         expiryDate: new Date(data.expiryDate).toISOString(),
       };
 
-      const result = await authApi.createBatch(formattedData);
+      const result = await Api.createBatch(formattedData, token);
       router.push(`/dashboard?success=batch-created&id=${result.batchId}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -132,10 +139,10 @@ export function CreateBatchForm() {
                     <FormItem>
                       <FormLabel>Quantity</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          min="0" 
-                          step="0.01" 
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
                           placeholder="0.00"
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -252,10 +259,10 @@ export function CreateBatchForm() {
                   <FormItem>
                     <FormLabel>Base Price</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        min="0" 
-                        step="0.01" 
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
                         placeholder="0.00"
                         {...field}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -267,13 +274,13 @@ export function CreateBatchForm() {
                 )}
               />
             </div>
-            
+
             {error && (
               <div className="bg-destructive/15 p-3 rounded-md text-destructive text-sm">
                 {error}
               </div>
             )}
-            
+
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Batch"}

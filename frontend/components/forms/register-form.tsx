@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 
 import { type RegisterUser, RegisterUserSchema, type StakeholderRole } from "@/types/user"
-import { authApi, ApiError } from "@/utils/api"
+import { Api, ApiError } from "@/utils/api"
 import { useAuth } from "@/hooks/useAuth"
 
 import { Button } from "@/components/ui/button"
@@ -40,7 +40,7 @@ export default function RegisterForm() {
   const onSubmit = async (data: RegisterUser) => {
     setIsLoading(true)
     try {
-      const response = await authApi.register(data)
+      const response = await Api.register(data)
 
       login(response.user, response.token)
 

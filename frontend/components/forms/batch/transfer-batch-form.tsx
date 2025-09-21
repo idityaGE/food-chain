@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form";
 
 import { useAuth } from "@/hooks/useAuth";
-import { authApi, ApiError } from "@/utils/api";
+import { Api, ApiError } from "@/utils/api";
 import { TransferBatch, TransferBatchSchema } from "@/types/batch";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,13 @@ export function TransferBatchForm({ batchId = "" }: TransferBatchFormProps) {
   async function onSubmit(data: TransferBatch) {
     setIsSubmitting(true);
     setError(null);
+    
+    if (!token) {
+      setError("Authentication required. Please log in again.");
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
       // Convert date to ISO format
       const formattedData = {
@@ -65,7 +72,7 @@ export function TransferBatchForm({ batchId = "" }: TransferBatchFormProps) {
         deliveryDate: data.deliveryDate ? new Date(data.deliveryDate).toISOString() : undefined,
       };
 
-      const result = await authApi.transferBatch(formattedData);
+      const result = await Api.transferBatch(formattedData, token);
       router.push(`/dashboard?success=batch-transferred&id=${result.batchId}`);
     } catch (err) {
       if (err instanceof ApiError) {

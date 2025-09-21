@@ -70,3 +70,30 @@ export type TransferResponse = {
     currency: string;
   };
 }
+
+export type ProductBatch = {
+  id: string;
+  batchId: number;
+  blockchainHash: string | null;
+  productName: string;
+  productType: string;
+  variety: string | null;
+  quantity: number;
+  unit: string;
+  harvestDate: Date;
+  expiryDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  status: "PRODUCED" | "IN_TRANSIT" | "DELIVERED" | "SOLD" | "EXPIRED";
+  qualityGrade: "A" | "B" | "C" | "REJECTED";
+  basePrice: number;
+  currency: string;
+  farmerId: string;
+  currentOwnerId: string;
+  originHash: string | null;
+  qualityHash: string | null;
+}
+
+export type ProductBatchesResponse = {
+  batches: ProductBatch[];
+}

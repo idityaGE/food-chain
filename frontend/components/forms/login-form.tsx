@@ -9,7 +9,7 @@ import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
 import { toast } from "sonner"
 
 import { type LoginUser, LoginUserSchema } from "@/types/user"
-import { authApi, ApiError } from "@/utils/api"
+import { Api, ApiError } from "@/utils/api"
 import { useAuth } from "@/hooks/useAuth"
 
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginUser) => {
     setIsLoading(true)
     try {
-      const response = await authApi.login(data)
+      const response = await Api.login(data)
 
       login(response.user, response.token)
 

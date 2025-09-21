@@ -6,8 +6,11 @@ import {
   BatchResponse,
   TransferResponse,
   CreateBatch,
-  TransferBatch
+  TransferBatch,
+  ProductBatch,
+  ProductBatchesResponse
 } from '@/types';
+import { BatchDetailResponse } from '@/types/batchDetail';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -58,7 +61,7 @@ async function apiRequest<T>(
   }
 }
 
-export const authApi = {
+export const Api = {
   register: async (userData: RegisterUser): Promise<AuthResponse> => {
     const response = await apiRequest<ApiSuccessResponse<AuthResponse>>(
       '/api/users/register',
@@ -81,23 +84,52 @@ export const authApi = {
     return response.data;
   },
 
-  createBatch: async (batchData: CreateBatch): Promise<BatchResponse> => {
-    const response = await apiRequest<ApiSuccessResponse<BatchResponse>>(
-      '/api/batches/create',
+  getBatches: async (token: string): Promise<ProductBatchesResponse> => {
+    const response = await apiRequest<ApiSuccessResponse<ProductBatchesResponse>>(
+      '/api/users/batches',
       {
-        method: 'POST',
-        body: JSON.stringify(batchData),
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       }
     );
     return response.data;
   },
 
-  transferBatch: async (transferData: TransferBatch): Promise<TransferResponse> => {
+  getBatchById: async (batchId: string): Promise<BatchDetailResponse> => {
+    const response = await apiRequest<ApiSuccessResponse<BatchDetailResponse>>(
+      `/api/batches/${batchId}`,
+      {
+        method: 'GET',
+      }
+    );
+    return response.data;
+  },
+
+  createBatch: async (batchData: CreateBatch, token: string): Promise<BatchResponse> => {
+    const response = await apiRequest<ApiSuccessResponse<BatchResponse>>(
+      '/api/batches/create',
+      {
+        method: 'POST',
+        body: JSON.stringify(batchData),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  transferBatch: async (transferData: TransferBatch, token: string): Promise<TransferResponse> => {
     const response = await apiRequest<ApiSuccessResponse<TransferResponse>>(
       '/api/batches/transfer',
       {
         method: 'POST',
         body: JSON.stringify(transferData),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       }
     );
     return response.data;
