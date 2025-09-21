@@ -9,7 +9,7 @@ import { ProductBatch } from '@/types/batch';
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2, QrCode } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -21,6 +21,17 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Header } from '@/components/ui/header';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import QRCode from 'react-qr-code';
 
 export default function DashboardPage() {
   const { user, token, isAuthenticated, isLoading } = useAuth();
@@ -159,38 +170,86 @@ export default function DashboardPage() {
                     <TableHead>Harvest Date</TableHead>
                     <TableHead>Expiry Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="text-center">QR Code</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {batches.map((batch) => (
                     <TableRow
                       key={batch.id}
-                      onClick={() => handleBatchClick(batch.id)}
                       className="cursor-pointer hover:bg-muted"
                     >
-                      <TableCell className="font-medium">{batch.batchId}</TableCell>
-                      <TableCell>{batch.productName}</TableCell>
-                      <TableCell>{batch.productType}</TableCell>
-                      <TableCell>
+                      <TableCell
+                        className="font-medium"
+                        onClick={() => handleBatchClick(batch.id)}
+                      >
+                        {batch.batchId}
+                      </TableCell>
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
+                        {batch.productName}
+                      </TableCell>
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
+                        {batch.productType}
+                      </TableCell>
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
                         {batch.quantity} {batch.unit}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
                         <Badge variant="outline" className={getBadgeColor(batch.status)}>
                           {batch.status.replace('_', ' ')}
                         </Badge>
                       </TableCell>
-                      <TableCell>{format(new Date(batch.harvestDate), "MMM d, yyyy")}</TableCell>
-                      <TableCell>{format(new Date(batch.expiryDate), "MMM d, yyyy")}</TableCell>
-                      {user.id === batch.currentOwnerId && (<TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => handleTransferClick(e, batch.id)}
-                        >
-                          Transfer
-                          <ArrowUpRight className="ml-1 h-4 w-4" />
-                        </Button>
-                      </TableCell>)}
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
+                        {format(new Date(batch.harvestDate), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell onClick={() => handleBatchClick(batch.id)}>
+                        {format(new Date(batch.expiryDate), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {user.id === batch.currentOwnerId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => handleTransferClick(e, batch.id)}
+                          >
+                            Transfer
+                            <ArrowUpRight className="ml-1 h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" onClick={(e) => e.stopPropagation()} size="sm">
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle className="text-center">Batch QR Code</DialogTitle>
+                              <DialogDescription className="text-center">
+                                Scan this QR code to view batch details
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex items-center justify-center py-6">
+                              <div className="bg-white p-4 rounded-lg shadow-sm border">
+                                <QRCode
+                                  value={`http://localhost:3000/dashboard/batch/${batch.id}`}
+                                  size={200}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-center text-sm text-muted-foreground mb-4">
+                              Batch ID: {batch.batchId}
+                            </div>
+                            <DialogFooter className="sm:justify-center">
+                              <DialogClose asChild>
+                                <Button variant="outline">Close</Button>
+                              </DialogClose>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
