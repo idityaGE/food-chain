@@ -121,4 +121,28 @@ const getUserProfile = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { user }, "User profile retrieved successfully"));
 });
 
-export { registerUser, loginUser, getUserProfile };
+const getUserBatches = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  let batches: any[] = [];
+  if (user.role === 'FARMER') {
+    batches = await prisma.productBatch.findMany({
+      where: {
+        farmerId: user.id
+      }
+    });
+  } else {
+    batches = await prisma.productBatch.findMany({
+      where: {
+        currentOwnerId: user.id
+      }
+    });
+  }
+
+  return res.status(200).json(new ApiResponse(200, { batches }, "User batches retrieved successfully"));
+});
+
+export { registerUser, loginUser, getUserProfile, getUserBatches };

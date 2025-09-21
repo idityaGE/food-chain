@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { StakeholderRoleType } from './user';
 
 export const CreateBatchSchema = z.object({
   productName: z.string().min(1).max(100),
@@ -40,3 +41,32 @@ export const TransferBatchSchema = z.object({
 
 export type CreateBatch = z.infer<typeof CreateBatchSchema>;
 export type TransferBatch = z.infer<typeof TransferBatchSchema>;
+
+export type BatchResponse = {
+  batchId: string;
+  blockchainId: string;
+  txHash: string;
+}
+
+export type TransferResponse = {
+  batchId: string;
+  blockchainBatchId: number;
+  transactionId: string;
+  txHash: string;
+  from: {
+    id: string;
+    name: string;
+    role: StakeholderRoleType;
+  };
+  to: {
+    id: string;
+    name: string;
+    role: StakeholderRoleType;
+  };
+  transferDetails: {
+    quantity: number;
+    pricePerUnit: number;
+    totalPrice: number;
+    currency: string;
+  };
+}

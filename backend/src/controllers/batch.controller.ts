@@ -157,7 +157,7 @@ const transferBatch = asyncHandler(async (req, res) => {
     }
 
     const toStakeholder = await prisma.stakeholder.findUnique({
-      where: { id: data.toStakeholderId }
+      where: { email: data.toStakeholderEmail }
     });
     if (!toStakeholder) {
       throw new ApiError(404, "Recipient stakeholder not found");
@@ -184,7 +184,7 @@ const transferBatch = asyncHandler(async (req, res) => {
     const transactionData = {
       batchId: batch.batchId,
       from: user.id,
-      to: data.toStakeholderId,
+      to: toStakeholder.id,
       quantity: transferQuantity,
       pricePerUnit: data.pricePerUnit,
       totalPrice: totalPrice,
@@ -224,7 +224,7 @@ const transferBatch = asyncHandler(async (req, res) => {
       const updatedBatch = await prisma.productBatch.update({
         where: { id: data.batchId },
         data: {
-          currentOwnerId: data.toStakeholderId,
+          currentOwnerId: toStakeholder.id,
           status: "IN_TRANSIT",
           updatedAt: new Date()
         }
@@ -234,7 +234,7 @@ const transferBatch = asyncHandler(async (req, res) => {
         data: {
           batchId: data.batchId,
           fromId: user.id,
-          toId: data.toStakeholderId,
+          toId: toStakeholder.id,
           transactionType: "SALE",
           quantity: transferQuantity,
           pricePerUnit: data.pricePerUnit,

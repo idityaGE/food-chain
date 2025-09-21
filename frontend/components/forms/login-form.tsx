@@ -8,7 +8,7 @@ import Link from "next/link"
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
 import { toast } from "sonner"
 
-import { type LoginUser, LoginUserSchema } from "@/types/schemas"
+import { type LoginUser, LoginUserSchema } from "@/types/user"
 import { authApi, ApiError } from "@/utils/api"
 import { useAuth } from "@/hooks/useAuth"
 

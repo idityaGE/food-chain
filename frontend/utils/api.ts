@@ -1,9 +1,13 @@
-import { 
-  RegisterUser, 
-  LoginUser, 
-  ApiSuccessResponse, 
-  AuthResponse 
-} from '@/types/schemas';
+import {
+  RegisterUser,
+  LoginUser,
+  ApiSuccessResponse,
+  AuthResponse,
+  BatchResponse,
+  TransferResponse,
+  CreateBatch,
+  TransferBatch
+} from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -23,7 +27,7 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -49,7 +53,7 @@ async function apiRequest<T>(
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError(500, 'Network error or server unavailable');
   }
 }
@@ -76,6 +80,28 @@ export const authApi = {
     );
     return response.data;
   },
+
+  createBatch: async (batchData: CreateBatch): Promise<BatchResponse> => {
+    const response = await apiRequest<ApiSuccessResponse<BatchResponse>>(
+      '/api/batches/create',
+      {
+        method: 'POST',
+        body: JSON.stringify(batchData),
+      }
+    );
+    return response.data;
+  },
+
+  transferBatch: async (transferData: TransferBatch): Promise<TransferResponse> => {
+    const response = await apiRequest<ApiSuccessResponse<TransferResponse>>(
+      '/api/batches/transfer',
+      {
+        method: 'POST',
+        body: JSON.stringify(transferData),
+      }
+    );
+    return response.data;
+  }
 };
 
 export { ApiError };

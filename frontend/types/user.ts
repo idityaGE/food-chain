@@ -56,23 +56,8 @@ export type User = {
   dataHash: string | null;
 };
 
-// API Response types
-export type ApiSuccessResponse<T> = {
-  statusCode: 200;
-  data: T;
-  message: string;
-  success: true;
-};
-
-export type ApiErrorResponse = {
-  error: true;
-  statusCode: number;
-  success: false;
-  message: string;
-};
-
 export type AuthResponse = {
   user: User;
   token: string;
   txHash?: string;
-};
+}

@@ -8,7 +8,7 @@ import Link from "next/link"
 import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 
-import { type RegisterUser, RegisterUserSchema, type StakeholderRole } from "@/types/schemas"
+import { type RegisterUser, RegisterUserSchema, type StakeholderRole } from "@/types/user"
 import { authApi, ApiError } from "@/utils/api"
 import { useAuth } from "@/hooks/useAuth"
 
