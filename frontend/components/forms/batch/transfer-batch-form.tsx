@@ -66,7 +66,6 @@ export function TransferBatchForm({ batchId = "" }: TransferBatchFormProps) {
     }
     
     try {
-      // Convert date to ISO format
       const formattedData = {
         ...data,
         deliveryDate: data.deliveryDate ? new Date(data.deliveryDate).toISOString() : undefined,

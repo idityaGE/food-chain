@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -42,8 +42,8 @@ export function CreateBatchForm() {
       variety: "",
       quantity: 0,
       unit: "kg",
-      harvestDate: format(new Date(), "yyyy-MM-dd"),
-      expiryDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
+      harvestDate: new Date(),
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       basePrice: 0,
     },
   });
@@ -51,22 +51,21 @@ export function CreateBatchForm() {
   async function onSubmit(data: CreateBatch) {
     setIsSubmitting(true);
     setError(null);
-    
+
     if (!token) {
       setError("Authentication required. Please log in again.");
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
-      // Convert dates to ISO format
       const formattedData = {
         ...data,
-        harvestDate: new Date(data.harvestDate).toISOString(),
-        expiryDate: new Date(data.expiryDate).toISOString(),
+        harvestDate: data.harvestDate.toISOString(),
+        expiryDate: data.expiryDate.toISOString(),
       };
-
-      const result = await Api.createBatch(formattedData, token);
+      
+      const result = await Api.createBatch(formattedData as any, token);
       router.push(`/dashboard?success=batch-created&id=${result.batchId}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -205,7 +204,7 @@ export function CreateBatchForm() {
                         <Calendar
                           mode="single"
                           selected={new Date(field.value)}
-                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                          onSelect={(date) => field.onChange(date || null)}
                           initialFocus
                         />
                       </PopoverContent>
@@ -243,7 +242,7 @@ export function CreateBatchForm() {
                         <Calendar
                           mode="single"
                           selected={new Date(field.value)}
-                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                          onSelect={(date) => field.onChange(date || null)}
                           initialFocus
                         />
                       </PopoverContent>

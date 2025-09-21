@@ -7,7 +7,6 @@ import {
   TransferResponse,
   CreateBatch,
   TransferBatch,
-  ProductBatch,
   ProductBatchesResponse
 } from '@/types';
 import { BatchDetailResponse } from '@/types/batchDetail';
@@ -32,11 +31,11 @@ async function apiRequest<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
     ...options,
+    headers: {
+      ...options.headers,
+      'Content-Type': 'application/json',
+    },
   };
 
   try {

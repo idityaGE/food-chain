@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { Header } from '@/components/ui/header';
 
 export default function DashboardPage() {
   const { user, token, isAuthenticated, isLoading } = useAuth();
@@ -102,6 +103,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
+      <Header />
       <header className="bg-card shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -179,7 +181,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell>{format(new Date(batch.harvestDate), "MMM d, yyyy")}</TableCell>
                       <TableCell>{format(new Date(batch.expiryDate), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="text-right">
+                      {user.id === batch.currentOwnerId && (<TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
@@ -188,7 +190,7 @@ export default function DashboardPage() {
                           Transfer
                           <ArrowUpRight className="ml-1 h-4 w-4" />
                         </Button>
-                      </TableCell>
+                      </TableCell>)}
                     </TableRow>
                   ))}
                 </TableBody>

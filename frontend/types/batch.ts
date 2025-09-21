@@ -7,16 +7,12 @@ export const CreateBatchSchema = z.object({
   variety: z.string().max(100).optional(),
   quantity: z.number().positive(),
   unit: z.string().default("kg"),
-  harvestDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: "Invalid harvest date format"
-  }),
-  expiryDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
-    message: "Invalid expiry date format"
-  }),
+  harvestDate: z.date(),
+  expiryDate: z.date(),
   basePrice: z.number().positive(),
 }).refine((data) => {
-  const harvestDate = new Date(data.harvestDate);
-  const expiryDate = new Date(data.expiryDate);
+  const harvestDate = data.harvestDate;
+  const expiryDate = data.expiryDate;
   return expiryDate > harvestDate;
 }, {
   message: "Expiry date must be after harvest date",

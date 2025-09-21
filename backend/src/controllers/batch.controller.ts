@@ -20,13 +20,13 @@ const registerBatch = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Only farmers can create batches");
   }
 
-  const { success, data } = CreateBatchSchema.safeParse(req.body);
+  const { success, data, error } = CreateBatchSchema.safeParse(req.body);
   if (!success) {
-    throw new ApiError(400, "Invalid batch data provided");
+    throw new ApiError(400, `Invalid batch data provided: ${error.issues.map(i => i.message).join(', ')}`);
   }
 
-  const harvestDate = Math.floor(new Date(data.harvestDate).getTime() / 1000);
-  const expiryDate = Math.floor(new Date(data.expiryDate).getTime() / 1000);
+  const harvestDate = new Date(data.harvestDate);
+  const expiryDate = new Date(data.expiryDate);
 
   const basePriceInWei = ethers.parseEther(data.basePrice.toString());
 
@@ -34,7 +34,7 @@ const registerBatch = asyncHandler(async (req, res) => {
     const originData = {
       farmerId: user.id,
       farmerName: user.name,
-      harvestDate: data.harvestDate,
+      harvestDate: harvestDate,
       location: user.location || '',
     };
     const originHash = await hash(JSON.stringify(originData));
@@ -50,8 +50,8 @@ const registerBatch = asyncHandler(async (req, res) => {
       data.productName,
       data.productType,
       data.quantity,
-      harvestDate,
-      expiryDate,
+      Math.floor(harvestDate.getTime() / 1000),
+      Math.floor(expiryDate.getTime() / 1000),
       basePriceInWei,
       originHash,
       "", // qualityHash - empty initially
@@ -92,8 +92,8 @@ const registerBatch = asyncHandler(async (req, res) => {
         variety: data.variety,
         quantity: data.quantity,
         unit: data.unit || "kg",
-        harvestDate: new Date(data.harvestDate),
-        expiryDate: new Date(data.expiryDate),
+        harvestDate: harvestDate.toISOString(),
+        expiryDate: expiryDate.toISOString(),
         basePrice: data.basePrice,
         currency: "INR",
         farmerId: user.id,
@@ -177,7 +177,7 @@ const transferBatch = asyncHandler(async (req, res) => {
       throw new ApiError(400, `Cannot transfer from ${user.role} to ${toStakeholder.role}`);
     }
 
-    const transferQuantity = data.quantity || Number(batch.quantity);
+    const transferQuantity = Number(batch.quantity);
     const totalPrice = data.pricePerUnit * transferQuantity;
     const totalPriceInWei = ethers.parseEther(totalPrice.toString());
 
@@ -451,8 +451,8 @@ const getBatch = asyncHandler(async (req, res) => {
     const analytics = {
       totalTransfers: batch.transactions.length,
       totalDistance: 0, // Could be calculated from GPS coordinates
-      averagePrice: batch.transactions.length > 0 
-        ? batch.transactions.reduce((sum, t) => sum + Number(t.pricePerUnit), 0) / batch.transactions.length 
+      averagePrice: batch.transactions.length > 0
+        ? batch.transactions.reduce((sum, t) => sum + Number(t.pricePerUnit), 0) / batch.transactions.length
         : Number(batch.basePrice),
       qualityReportsCount: batch.qualityReports.length,
       certificationsCount: batch.certifications.length,

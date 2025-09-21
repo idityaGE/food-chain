@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Api, ApiError } from '@/utils/api';
-import { ProductBatch } from '@/types/batch';
 import { BatchDetailResponse } from '@/types/batchDetail';
 import { format } from 'date-fns';
 import { ArrowLeft, CalendarIcon, PackageIcon, Loader2, ArrowUpRight, TruckIcon, Wallet, Users, Activity, Landmark } from 'lucide-react';
@@ -15,21 +14,14 @@ import { Separator } from '@/components/ui/separator';
 
 export default function BatchDetailPage() {
   const { id } = useParams();
-  const { token, isAuthenticated, isLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [batchDetails, setBatchDetails] = useState<BatchDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-
     async function fetchBatchDetails() {
-      if (!token || !id) return;
-
       try {
         setLoading(true);
         try {
@@ -52,10 +44,10 @@ export default function BatchDetailPage() {
       }
     }
 
-    if (isAuthenticated && token && id) {
+    if (id) {
       fetchBatchDetails();
     }
-  }, [id, isAuthenticated, isLoading, router, token]);
+  }, [id, router]);
 
   function getBadgeColor(status: string) {
     switch (status) {
@@ -89,7 +81,7 @@ export default function BatchDetailPage() {
     }
   }
 
-  if (loading || isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -137,10 +129,10 @@ export default function BatchDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
         </Button>
 
-        <Button onClick={() => router.push(`/dashboard/batch/transfer?batchId=${batch.id}`)}>
+        {user && batch.currentOwnerId === user.id && (<Button onClick={() => router.push(`/dashboard/batch/transfer?batchId=${batch.id}`)}>
           Transfer Batch
           <ArrowUpRight className="ml-2 h-4 w-4" />
-        </Button>
+        </Button>)}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -491,13 +483,6 @@ export default function BatchDetailPage() {
               </div>
             </CardContent>
           </Card>
-
-          <CardFooter className="flex justify-end px-0">
-            <Button onClick={() => router.push(`/dashboard/batch/transfer?batchId=${batch.id}`)}>
-              Transfer Batch
-              <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardFooter>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ export const asyncHandler =
       try {
         await fn(req, res, next);
       } catch (error: any) {
-        console.log("Error Occured = ", error);
+        console.log("Error Occured = \n" + error);
         res.status(error.statusCode || 500).json({
           error: true,
           statusCode: error.statusCode,

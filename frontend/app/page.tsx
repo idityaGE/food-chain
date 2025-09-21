@@ -1,32 +1,12 @@
-"use client"
+'use client'
 
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/useAuth"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import Link from "next/link"
-import { Shield, Users, Truck, CheckCircle, ArrowRight } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { Shield, Users, Truck, CheckCircle, ArrowRight, LogOut } from "lucide-react"
 
 export default function Home() {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.push("/dashboard")
-    }
-  }, [isAuthenticated, isLoading, router])
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+  const { isAuthenticated, logout } = useAuth()
 
   return (
     <div className="min-h-screen bg-background text-foreground dark">
@@ -42,12 +22,26 @@ export default function Home() {
               <h1 className="text-xl font-semibold text-foreground">Food Chain</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Sign in
-              </Link>
-              <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Link href="/register">Get Started</Link>
-              </Button>
+              {!isAuthenticated ? (
+                <>
+                  <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Sign in
+                  </Link>
+                  <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Link href="/register">Get Started</Link>
+                  </Button>
+                </>
+              ) : (
+                <div>
+                  <Button asChild size="sm">
+                    <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" className="ml-2" onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -65,20 +59,33 @@ export default function Home() {
                 food experiences with blockchain technology.
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  <Link href="/register" className="flex items-center gap-2">
-                    Get Started
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="border-border text-foreground hover:bg-accent bg-transparent"
-                >
-                  <Link href="/login">Sign In</Link>
-                </Button>
+                {!isAuthenticated ? (
+                  <>
+                    <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                      <Link href="/register" className="flex items-center gap-2">
+                        Get Started
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="lg"
+                      className="border-border text-foreground hover:bg-accent bg-transparent"
+                    >
+                      <Link href="/login">Sign In</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <div>
+                    <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                      <Link href="/dashboard" className="flex items-center gap-2">
+                        Go to Dashboard
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
