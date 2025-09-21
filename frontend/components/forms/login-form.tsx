@@ -9,8 +9,8 @@ import { Eye, EyeOff, Loader2, LogIn } from "lucide-react"
 import { toast } from "sonner"
 
 import { type LoginUser, LoginUserSchema } from "@/types/schemas"
-import { authApi, ApiError } from "@/lib/api"
-import { useAuth } from "@/lib/auth-context"
+import { authApi, ApiError } from "@/utils/api"
+import { useAuth } from "@/hooks/useAuth"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,14 +37,12 @@ export default function LoginForm() {
     try {
       const response = await authApi.login(data)
 
-      // Store user data and token
       login(response.user, response.token)
 
       toast.success("Login successful!", {
         description: `Welcome back, ${response.user.name}!`,
       })
 
-      // Redirect to dashboard or home page
       router.push("/dashboard")
     } catch (error) {
       if (error instanceof ApiError) {

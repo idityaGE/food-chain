@@ -9,8 +9,8 @@ import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 
 import { type RegisterUser, RegisterUserSchema, type StakeholderRole } from "@/types/schemas"
-import { authApi, ApiError } from "@/lib/api"
-import { useAuth } from "@/lib/auth-context"
+import { authApi, ApiError } from "@/utils/api"
+import { useAuth } from "@/hooks/useAuth"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,7 +66,23 @@ export default function RegisterForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-6">
+        
+        <div className="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-5 h-5 bg-amber-500/20 rounded-full flex items-center justify-center mt-0.5">
+              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-amber-200 mb-1">Prototype Notice</h3>
+              <p className="text-xs text-amber-100/80 leading-relaxed">
+                Registration of farmers and distributors can only be done by an authorized officer in production.
+                However, since this is a prototype, registration is open to everyone for demonstration purposes.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader className="space-y-1 pb-6">
             <div className="flex items-center justify-center mb-4">

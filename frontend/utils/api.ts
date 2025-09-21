@@ -2,7 +2,6 @@ import {
   RegisterUser, 
   LoginUser, 
   ApiSuccessResponse, 
-  ApiErrorResponse, 
   AuthResponse 
 } from '@/types/schemas';
 
