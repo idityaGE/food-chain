@@ -74,8 +74,8 @@ export default function RegisterForm() {
               <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-amber-200 mb-1">Prototype Notice</h3>
-              <p className="text-xs text-amber-100/80 leading-relaxed">
+              <h3 className="text-sm font-medium mb-1">Prototype Notice</h3>
+              <p className="text-xs leading-relaxed">
                 Registration of farmers and distributors can only be done by an authorized officer in production.
                 However, since this is a prototype, registration is open to everyone for demonstration purposes.
               </p>

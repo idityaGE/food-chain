@@ -13,8 +13,8 @@ const font = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Food Chain",
-  description: "Transparent food supply chain on the blockchain",
+  title: "AgriChain - Blockchain Agricultural Supply Chain",
+  description: "Blockchain-powered agricultural transparency from farm to table. Track produce with complete transparency in pricing, quality, and origin.",
 };
 
 export default function RootLayout({
@@ -25,12 +25,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${font.variable} antialiased`}
+        className={`${font.variable} antialiased bg-white text-gray-900`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          // enableSystem
+          defaultTheme="light"
+          forcedTheme="light"
           disableTransitionOnChange
         >
           <AuthProvider>

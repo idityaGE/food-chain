@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+.force-light-mode {
+  background-color: white !important;
+  color: #111827 !important;
+}
+
+.force-light-mode * {
+  border-color: #e5e7eb !important;
+}
