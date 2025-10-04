@@ -12,10 +12,7 @@ A decentralized platform that tracks agricultural produce through the entire sup
 
 ## Demo Video:
 
-<video width="100%" controls>
-  <source src="https://github.com/user-attachments/assets/63c6c955-7ebf-40a4-9fe4-76985a5f59fe" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/63c6c955-7ebf-40a4-9fe4-76985a5f59fe.mp4
 
 ## 📋 Problem Statement
 
